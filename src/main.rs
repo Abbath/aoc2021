@@ -106,12 +106,8 @@ fn day_03() {
     }
     let mut ox_counters1 = counters1.clone();
     let mut ox_counters0 = counters0.clone();
-    let mut out = false;
-    for bit in 0..ox_counters0.len() {
-        let mut temp= Vec::<u64>::new();
-        if out {
-            break;
-        }
+    'outer1: for bit in 0..ox_counters0.len() {
+        let mut temp = Vec::<u64>::new();
         for num in nums.iter() {
             if !set_oxygen.contains(num) {
                 continue;
@@ -120,7 +116,6 @@ fn day_03() {
                 if num & (1 << ox_counters0.len() - bit - 1) == 0 {
                     set_oxygen.remove(num);
                     temp.push(*num);
-                   
                 }
             } else if ox_counters0[bit] > ox_counters1[bit] {
                 if num & (1 << ox_counters0.len() - bit - 1) != 0 {
@@ -137,8 +132,7 @@ fn day_03() {
                 for e in set_oxygen.drain() {
                     oxygen = e;
                 }
-                out = true;
-                break;
+                break 'outer1;
             }
         }
         for n in temp {
@@ -153,13 +147,9 @@ fn day_03() {
     }
     let mut co_counters1 = counters1.clone();
     let mut co_counters0 = counters0.clone();
-    out = false;
-    for bit in 0..co_counters0.len() {
-        let mut temp= Vec::<u64>::new();
+    'outer2: for bit in 0..co_counters0.len() {
+        let mut temp = Vec::<u64>::new();
         for num in nums.iter() {
-            if out {
-                break;
-            }
             if !set_co2.contains(num) {
                 continue;
             }
@@ -167,7 +157,6 @@ fn day_03() {
                 if num & (1 << co_counters0.len() - bit - 1) != 0 {
                     set_co2.remove(num);
                     temp.push(*num);
-                    
                 }
             } else if co_counters1[bit] < co_counters0[bit] {
                 if num & (1 << counters0.len() - bit - 1) == 0 {
@@ -184,8 +173,7 @@ fn day_03() {
                 for e in set_co2.drain() {
                     co2 = e;
                 }
-                out = false;
-                break;
+                break 'outer2;
             }
         }
         for n in temp {
@@ -201,8 +189,90 @@ fn day_03() {
     println!("{} {}", gamma * epsilon, oxygen * co2);
 }
 
+fn day_04() {
+    let file = File::open("04/input.txt").unwrap();
+    let reader = BufReader::new(file);
+    let mut nums = Vec::<u64>::new();
+    let mut boards_n = Vec::<Vec<u64>>::new();
+    let mut boards_c = Vec::<Vec<u64>>::new();
+    let mut counter = 0u64;
+    for (i, line) in reader.lines().flatten().enumerate() {
+        if i == 0 {
+            nums = line
+                .split(',')
+                .map(|s| s.parse::<u64>())
+                .flatten()
+                .collect::<Vec<u64>>();
+        } else {
+            if line.is_empty() {
+                continue;
+            }
+            let row: Vec<u64> = line
+                .split(' ')
+                .map(|s| s.parse::<u64>())
+                .flatten()
+                .collect();
+            if counter % 25 == 0 {
+                boards_n.push(vec![0; 25]);
+                boards_c.push(vec![0; 25]);
+            }
+            for val in row {
+                let l = boards_n.len();
+                boards_n[l - 1][(counter % 25) as usize] = val;
+                boards_c[l - 1][(counter % 25) as usize] = 0;
+                counter += 1;
+            }
+        }
+    }
+    let mut win1 = 0u64;
+    let mut win2 = 0u64;
+    let mut win3 = 0u64;
+    let mut win4 = 0u64;
+    let mut first = true;
+    let mut wins = vec![0; boards_n.len()];
+    'outer: for n in nums {
+        for i in 0..boards_n.len() {
+            for j in 0..25 {
+                if boards_n[i][j] == n {
+                    boards_c[i][j] = 1;
+                }
+            }
+        }
+        for i in 0..boards_n.len() {
+            for j in 0..5 {
+                let x: Vec<u64> = boards_c[i].iter().skip(j).step_by(5).copied().collect();
+                let y: Vec<u64> = boards_c[i].iter().skip(j * 5).take(5).copied().collect();
+                if x.iter().all(|a| *a == 1) || y.iter().all(|a| *a == 1) {
+                    if first {
+                        first = false;
+                        win1 = n;
+                        for k in 0..25 {
+                            if boards_c[i][k] == 0 {
+                                win2 += boards_n[i][k];
+                            }
+                        }
+                    }
+                    wins[i] = 1;
+                    let s: u64 = wins.iter().sum();
+                    if wins.len() - s as usize == 0 {
+                        win3 = n;
+                        for k in 0..25 {
+                            if boards_c[i][k] == 0 {
+                                win4 += boards_n[i][k];
+                            }
+                        }
+                        break 'outer;
+                    }
+                }
+            }
+        }
+    }
+    println!("{} {}", win1 * win2, win3 * win4);
+}
+
 fn main() {
     day_01();
     day_02();
     day_03();
+    day_04();
 }
