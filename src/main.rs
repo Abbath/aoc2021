@@ -1,6 +1,6 @@
 use std::cmp::Ordering;
-use std::collections::{HashMap, HashSet};
-use std::fs::File;
+use std::collections::{HashMap, HashSet, VecDeque};
+use std::fs::{read_to_string, File};
 use std::io::{prelude::*, BufReader};
 
 fn day_01() {
@@ -330,10 +330,33 @@ fn day_05() {
     println!("{} {}", s, s2);
 }
 
+fn day_06() {
+    let line = read_to_string("06/input.txt").unwrap();
+    let mut fishes = VecDeque::<u64>::from(vec![0; 9]);
+    line.trim()
+        .split(',')
+        .map(|s| s.parse::<u64>())
+        .flatten()
+        .for_each(|n| fishes[n as usize] += 1);
+    for _ in 0..80u64 {
+        let n = fishes.pop_front().unwrap();
+        fishes[6] += n;
+        fishes.push_back(n);
+    }
+    print!("{} ", fishes.iter().sum::<u64>());
+    for _ in 80..256u64 {
+        let n = fishes.pop_front().unwrap();
+        fishes[6] += n;
+        fishes.push_back(n);
+    }
+    println!("{}", fishes.iter().sum::<u64>());
+}
+
 fn main() {
     day_01();
     day_02();
     day_03();
     day_04();
     day_05();
+    day_06();
 }
