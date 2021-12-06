@@ -1,4 +1,5 @@
-use std::collections::{HashSet, HashMap};
+use std::cmp::Ordering;
+use std::collections::{HashMap, HashSet};
 use std::fs::File;
 use std::io::{prelude::*, BufReader};
 
@@ -9,19 +10,15 @@ fn day_01() {
     let mut counter = 0;
     let mut old = 0u64;
     let mut nums = Vec::<u64>::new();
-    for line in reader.lines() {
-        if let Ok(ip) = line {
-            if let Ok(num) = ip.parse::<u64>() {
-                if first {
-                    first = false;
-                } else {
-                    if num > old {
-                        counter += 1;
-                    }
-                }
-                nums.push(num);
-                old = num;
+    for line in reader.lines().flatten() {
+        if let Ok(num) = line.parse::<u64>() {
+            if first {
+                first = false;
+            } else if num > old {
+                counter += 1;
             }
+            nums.push(num);
+            old = num;
         }
     }
     let mut counter2 = 0u64;
@@ -41,25 +38,23 @@ fn day_02() {
     let mut pos = (0u64, 0u64);
     let mut pos2 = (0i64, 0i64);
     let mut aim = 0i64;
-    for r in reader.lines() {
-        if let Ok(line) = r {
-            let words: Vec<&str> = line.split(" ").collect();
-            match words[0].as_ref() {
-                "forward" => {
-                    pos.0 += words[1].parse::<u64>().unwrap();
-                    pos2.0 += words[1].parse::<i64>().unwrap();
-                    pos2.1 += aim * words[1].parse::<i64>().unwrap();
-                }
-                "up" => {
-                    pos.1 -= words[1].parse::<u64>().unwrap();
-                    aim -= words[1].parse::<i64>().unwrap();
-                }
-                "down" => {
-                    pos.1 += words[1].parse::<u64>().unwrap();
-                    aim += words[1].parse::<i64>().unwrap()
-                }
-                _ => (),
+    for line in reader.lines().flatten() {
+        let words: Vec<&str> = line.split(' ').collect();
+        match words[0] {
+            "forward" => {
+                pos.0 += words[1].parse::<u64>().unwrap();
+                pos2.0 += words[1].parse::<i64>().unwrap();
+                pos2.1 += aim * words[1].parse::<i64>().unwrap();
             }
+            "up" => {
+                pos.1 -= words[1].parse::<u64>().unwrap();
+                aim -= words[1].parse::<i64>().unwrap();
+            }
+            "down" => {
+                pos.1 += words[1].parse::<u64>().unwrap();
+                aim += words[1].parse::<i64>().unwrap()
+            }
+            _ => (),
         }
     }
     println!("{} {}", pos.0 * pos.1, pos2.0 * pos2.1);
@@ -71,29 +66,27 @@ fn day_03() {
     let mut counters0 = Vec::<u64>::new();
     let mut counters1 = Vec::<u64>::new();
     let mut nums = Vec::<u64>::new();
-    for r in reader.lines() {
-        if let Ok(line) = r {
-            if counters0.len() == 0 {
-                counters0.resize(line.len(), 0);
-                counters1.resize(line.len(), 0);
-            }
-            for (i, c) in line.chars().enumerate() {
-                match c {
-                    '1' => counters1[i] += 1,
-                    '0' => counters0[i] += 1,
-                    _ => (),
-                }
-            }
-            nums.push(u64::from_str_radix(&line, 2).unwrap());
+    for line in reader.lines().flatten() {
+        if counters0.is_empty() {
+            counters0.resize(line.len(), 0);
+            counters1.resize(line.len(), 0);
         }
+        for (i, c) in line.chars().enumerate() {
+            match c {
+                '1' => counters1[i] += 1,
+                '0' => counters0[i] += 1,
+                _ => (),
+            }
+        }
+        nums.push(u64::from_str_radix(&line, 2).unwrap());
     }
     let mut gamma = 0u64;
     let mut epsilon = 0u64;
     for i in 0..counters0.len() {
         if counters1[i] > counters0[i] {
-            gamma |= 1 << counters0.len() - i - 1;
+            gamma |= 1 << (counters0.len() - i - 1);
         } else {
-            epsilon |= 1 << counters0.len() - i - 1;
+            epsilon |= 1 << (counters0.len() - i - 1);
         }
     }
     let mut set_oxygen = HashSet::<u64>::new();
@@ -112,20 +105,24 @@ fn day_03() {
             if !set_oxygen.contains(num) {
                 continue;
             }
-            if ox_counters1[bit] > ox_counters0[bit] {
-                if num & (1 << ox_counters0.len() - bit - 1) == 0 {
-                    set_oxygen.remove(num);
-                    temp.push(*num);
+            match ox_counters1[bit].cmp(&ox_counters0[bit]) {
+                Ordering::Greater => {
+                    if num & 1 << (ox_counters0.len() - bit - 1) == 0 {
+                        set_oxygen.remove(num);
+                        temp.push(*num);
+                    }
                 }
-            } else if ox_counters0[bit] > ox_counters1[bit] {
-                if num & (1 << ox_counters0.len() - bit - 1) != 0 {
-                    set_oxygen.remove(num);
-                    temp.push(*num);
+                Ordering::Less => {
+                    if num & 1 << (ox_counters0.len() - bit - 1) != 0 {
+                        set_oxygen.remove(num);
+                        temp.push(*num);
+                    }
                 }
-            } else if ox_counters1[bit] == ox_counters0[bit] {
-                if num & 1 << ox_counters0.len() - bit - 1 == 0 {
-                    set_oxygen.remove(num);
-                    temp.push(*num);
+                Ordering::Equal => {
+                    if num & 1 << (ox_counters0.len() - bit - 1) == 0 {
+                        set_oxygen.remove(num);
+                        temp.push(*num);
+                    }
                 }
             }
             if set_oxygen.len() == 1 {
@@ -137,7 +134,7 @@ fn day_03() {
         }
         for n in temp {
             for i in 0..ox_counters0.len() {
-                if n & (1 << ox_counters0.len() - i - 1) == 0 {
+                if n & (1 << (ox_counters0.len() - i - 1)) == 0 {
                     ox_counters0[i] -= 1;
                 } else {
                     ox_counters1[i] -= 1;
@@ -153,20 +150,24 @@ fn day_03() {
             if !set_co2.contains(num) {
                 continue;
             }
-            if co_counters0[bit] < co_counters1[bit] {
-                if num & (1 << co_counters0.len() - bit - 1) != 0 {
-                    set_co2.remove(num);
-                    temp.push(*num);
+            match co_counters1[bit].cmp(&co_counters0[bit]) {
+                Ordering::Greater => {
+                    if num & (1 << (co_counters0.len() - bit - 1)) != 0 {
+                        set_co2.remove(num);
+                        temp.push(*num);
+                    }
                 }
-            } else if co_counters1[bit] < co_counters0[bit] {
-                if num & (1 << counters0.len() - bit - 1) == 0 {
-                    set_co2.remove(num);
-                    temp.push(*num);
+                Ordering::Less => {
+                    if num & (1 << (counters0.len() - bit - 1)) == 0 {
+                        set_co2.remove(num);
+                        temp.push(*num);
+                    }
                 }
-            } else if co_counters1[bit] == co_counters0[bit] {
-                if num & 1 << co_counters0.len() - bit - 1 != 0 {
-                    set_co2.remove(num);
-                    temp.push(*num);
+                Ordering::Equal => {
+                    if num & 1 << (co_counters0.len() - bit - 1) != 0 {
+                        set_co2.remove(num);
+                        temp.push(*num);
+                    }
                 }
             }
             if set_co2.len() == 1 {
@@ -178,7 +179,7 @@ fn day_03() {
         }
         for n in temp {
             for i in 0..co_counters0.len() {
-                if n & (1 << co_counters0.len() - i - 1) == 0 {
+                if n & (1 << (co_counters0.len() - i - 1)) == 0 {
                     co_counters0[i] -= 1;
                 } else {
                     co_counters1[i] -= 1;
@@ -277,27 +278,35 @@ fn day_05() {
     let mut paths2 = HashMap::<(u64, u64), u64>::new();
     for line in reader.lines().flatten() {
         let dots: Vec<&str> = line.split("->").collect();
-        let dot1: Vec<u64> = dots[0].split(",").map(|s| s.trim().parse::<u64>()).flatten().collect();
-        let dot2: Vec<u64> = dots[1].split(",").map(|s| s.trim().parse::<u64>()).flatten().collect();
+        let dot1: Vec<u64> = dots[0]
+            .split(',')
+            .map(|s| s.trim().parse::<u64>())
+            .flatten()
+            .collect();
+        let dot2: Vec<u64> = dots[1]
+            .split(',')
+            .map(|s| s.trim().parse::<u64>())
+            .flatten()
+            .collect();
         if dot1[0] == dot2[0] {
             let mut v = [dot1[1], dot2[1]];
-            v.sort();
+            v.sort_unstable();
             let r = v[0]..=v[1];
             for y in r {
                 *paths.entry((dot1[0], y)).or_insert(0) += 1;
                 *paths2.entry((dot1[0], y)).or_insert(0) += 1;
             }
-        }else if dot1[1] == dot2[1] {
+        } else if dot1[1] == dot2[1] {
             let mut v = [dot1[0], dot2[0]];
-            v.sort();
+            v.sort_unstable();
             let r = v[0]..=v[1];
             for x in r {
                 *paths.entry((x, dot1[1])).or_insert(0) += 1;
                 *paths2.entry((x, dot1[1])).or_insert(0) += 1;
             }
-        }else{
-            let dx = if dot1[0] < dot2[0] {1} else {-1}; 
-            let dy = if dot1[1] < dot2[1] {1} else {-1};
+        } else {
+            let dx = if dot1[0] < dot2[0] { 1 } else { -1 };
+            let dy = if dot1[1] < dot2[1] { 1 } else { -1 };
             let mut x = dot1[0];
             let mut y = dot1[1];
             loop {
@@ -307,11 +316,17 @@ fn day_05() {
                 }
                 x = (x as i32 + dx) as u64;
                 y = (y as i32 + dy) as u64;
-            } 
+            }
         }
     }
-    let s = paths.values().map(|x| if x > &1 {1} else {0}).sum::<u64>();
-    let s2 = paths2.values().map(|x| if x > &1 {1} else {0}).sum::<u64>();
+    let s = paths
+        .values()
+        .map(|x| if x > &1 { 1 } else { 0 })
+        .sum::<u64>();
+    let s2 = paths2
+        .values()
+        .map(|x| if x > &1 { 1 } else { 0 })
+        .sum::<u64>();
     println!("{} {}", s, s2);
 }
 
