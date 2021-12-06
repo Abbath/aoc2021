@@ -1,4 +1,4 @@
-use std::collections::HashSet;
+use std::collections::{HashSet, HashMap};
 use std::fs::File;
 use std::io::{prelude::*, BufReader};
 
@@ -270,9 +270,55 @@ fn day_04() {
     println!("{} {}", win1 * win2, win3 * win4);
 }
 
+fn day_05() {
+    let file = File::open("05/input.txt").unwrap();
+    let reader = BufReader::new(file);
+    let mut paths = HashMap::<(u64, u64), u64>::new();
+    let mut paths2 = HashMap::<(u64, u64), u64>::new();
+    for line in reader.lines().flatten() {
+        let dots: Vec<&str> = line.split("->").collect();
+        let dot1: Vec<u64> = dots[0].split(",").map(|s| s.trim().parse::<u64>()).flatten().collect();
+        let dot2: Vec<u64> = dots[1].split(",").map(|s| s.trim().parse::<u64>()).flatten().collect();
+        if dot1[0] == dot2[0] {
+            let mut v = [dot1[1], dot2[1]];
+            v.sort();
+            let r = v[0]..=v[1];
+            for y in r {
+                *paths.entry((dot1[0], y)).or_insert(0) += 1;
+                *paths2.entry((dot1[0], y)).or_insert(0) += 1;
+            }
+        }else if dot1[1] == dot2[1] {
+            let mut v = [dot1[0], dot2[0]];
+            v.sort();
+            let r = v[0]..=v[1];
+            for x in r {
+                *paths.entry((x, dot1[1])).or_insert(0) += 1;
+                *paths2.entry((x, dot1[1])).or_insert(0) += 1;
+            }
+        }else{
+            let dx = if dot1[0] < dot2[0] {1} else {-1}; 
+            let dy = if dot1[1] < dot2[1] {1} else {-1};
+            let mut x = dot1[0];
+            let mut y = dot1[1];
+            loop {
+                *paths2.entry((x, y)).or_insert(0) += 1;
+                if x == dot2[0] && y == dot2[1] {
+                    break;
+                }
+                x = (x as i32 + dx) as u64;
+                y = (y as i32 + dy) as u64;
+            } 
+        }
+    }
+    let s = paths.values().map(|x| if x > &1 {1} else {0}).sum::<u64>();
+    let s2 = paths2.values().map(|x| if x > &1 {1} else {0}).sum::<u64>();
+    println!("{} {}", s, s2);
+}
+
 fn main() {
     day_01();
     day_02();
     day_03();
     day_04();
+    day_05();
 }
