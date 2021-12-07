@@ -362,28 +362,35 @@ fn day_07() {
         .for_each(|n| poss.push_back(n));
     let max = *poss.iter().max().unwrap();
     let min = *poss.iter().min().unwrap();
-    let mut dists = HashMap::<u64, u64>::new();
-    let mut dists2 = HashMap::<u64, u64>::new();
+    let mut min1 = u64::MAX;
+    let mut min2 = u64::MAX;
     for i in min..=max {
+        let mut sum = 0u64;
         for pos in poss.iter() {
             let n = i64::abs(*pos as i64 - i as i64) as u64;
-            *dists.entry(i).or_insert(0) += n;
-            *dists2.entry(i).or_insert(0) += n * (n + 1) / 2;
+            sum += n;
+            if sum >= min1 {
+                break;
+            }
+        }
+        if sum < min1 {
+            min1 = sum;
         }
     }
-    println!(
-        "{} {}",
-        dists
-            .iter()
-            .min_by(|a, b| a.1.cmp(b.1))
-            .map(|(_k, v)| v)
-            .unwrap(),
-        dists2
-            .iter()
-            .min_by(|a, b| a.1.cmp(b.1))
-            .map(|(_k, v)| v)
-            .unwrap(),
-    );
+    for i in min..=max {
+        let mut sum = 0u64;
+        for pos in poss.iter() {
+            let n = i64::abs(*pos as i64 - i as i64) as u64;
+            sum += n * (n + 1) / 2;
+            if sum >= min2 {
+                break;
+            }
+        }
+        if sum < min2 {
+            min2 = sum;
+        }
+    }
+    println!("{} {}", min1, min2);
 }
 
 fn main() {
