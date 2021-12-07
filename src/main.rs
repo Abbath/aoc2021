@@ -352,6 +352,40 @@ fn day_06() {
     println!("{}", fishes.iter().sum::<u64>());
 }
 
+fn day_07() {
+    let line = read_to_string("07/input.txt").unwrap();
+    let mut poss = VecDeque::<u64>::new();
+    line.trim()
+        .split(',')
+        .map(|s| s.parse::<u64>())
+        .flatten()
+        .for_each(|n| poss.push_back(n));
+    let max = *poss.iter().max().unwrap();
+    let min = *poss.iter().min().unwrap();
+    let mut dists = HashMap::<u64, u64>::new();
+    let mut dists2 = HashMap::<u64, u64>::new();
+    for i in min..=max {
+        for pos in poss.iter() {
+            let n = i64::abs(*pos as i64 - i as i64) as u64;
+            *dists.entry(i).or_insert(0) += n;
+            *dists2.entry(i).or_insert(0) += n * (n + 1) / 2;
+        }
+    }
+    println!(
+        "{} {}",
+        dists
+            .iter()
+            .min_by(|a, b| a.1.cmp(b.1))
+            .map(|(_k, v)| v)
+            .unwrap(),
+        dists2
+            .iter()
+            .min_by(|a, b| a.1.cmp(b.1))
+            .map(|(_k, v)| v)
+            .unwrap(),
+    );
+}
+
 fn main() {
     day_01();
     day_02();
@@ -359,4 +393,5 @@ fn main() {
     day_04();
     day_05();
     day_06();
+    day_07();
 }
