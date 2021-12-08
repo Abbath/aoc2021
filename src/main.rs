@@ -394,13 +394,13 @@ fn day_07() {
 }
 
 fn day_08() {
-    let includes = |a: &str, b: &str| {
+    let includes = |a: &str, b: &str| -> bool {
         for c in a.chars() {
             if !b.contains(c) {
                 return false;
             }
         }
-        return true;
+        true
     };
     let file = File::open("08/input.txt").unwrap();
     let reader = BufReader::new(file);
@@ -413,10 +413,18 @@ fn day_08() {
         let digits: Vec<&str> = chunks[0].trim().split(' ').collect();
         for digit in digits.iter() {
             match digit.len() {
-                2 => { d.insert(1, digit.to_string()); }
-                3 => { d.insert(7, digit.to_string()); }
-                4 => { d.insert(4, digit.to_string()); }
-                7 => { d.insert(8, digit.to_string()); }
+                2 => {
+                    d.insert(1, digit.to_string());
+                }
+                3 => {
+                    d.insert(7, digit.to_string());
+                }
+                4 => {
+                    d.insert(4, digit.to_string());
+                }
+                7 => {
+                    d.insert(8, digit.to_string());
+                }
                 _ => (),
             }
         }
@@ -430,35 +438,33 @@ fn day_08() {
                 5 => {
                     if includes(&d[&1], digit) {
                         d.insert(3, digit.to_string());
-                    } else {
-                        if d.contains_key(&6) {
-                            if includes(digit, &d[&6]) {
-                                d.insert(5, digit.to_string());
-                            }else{
-                                d.insert(2, digit.to_string());
-                            }
-                        }else{
-                            ft_candidates.push(digit.to_string());
+                    } else if d.contains_key(&6) {
+                        if includes(digit, &d[&6]) {
+                            d.insert(5, digit.to_string());
+                        } else {
+                            d.insert(2, digit.to_string());
                         }
+                    } else {
+                        ft_candidates.push(digit.to_string());
                     }
                 }
                 6 => {
                     if includes(&d[&4], digit) {
                         d.insert(9, digit.to_string());
-                    }else if includes(&d[&7], digit){
+                    } else if includes(&d[&7], digit) {
                         d.insert(0, digit.to_string());
-                    }else {
+                    } else {
                         d.insert(6, digit.to_string());
                     }
                 }
-                _ => ()
+                _ => (),
             }
         }
         if !ft_candidates.is_empty() {
             for ftc in ft_candidates {
                 if includes(&ftc, &d[&6]) {
                     d.insert(5, ftc);
-                }else{
+                } else {
                     d.insert(2, ftc);
                 }
             }
