@@ -393,6 +393,102 @@ fn day_07() {
     println!("{} {}", min1, min2);
 }
 
+fn day_08() {
+    let includes = |a: &str, b: &str| {
+        for c in a.chars() {
+            if !b.contains(c) {
+                return false;
+            }
+        }
+        return true;
+    };
+    let file = File::open("08/input.txt").unwrap();
+    let reader = BufReader::new(file);
+    let mut counter = 0u64;
+    let mut big_sum = 0u64;
+    for line in reader.lines().flatten() {
+        let mut d = HashMap::<u64, String>::new();
+        let mut d2 = HashMap::<String, u64>::new();
+        let chunks: Vec<&str> = line.split('|').collect();
+        let digits: Vec<&str> = chunks[0].trim().split(' ').collect();
+        for digit in digits.iter() {
+            match digit.len() {
+                2 => { d.insert(1, digit.to_string()); }
+                3 => { d.insert(7, digit.to_string()); }
+                4 => { d.insert(4, digit.to_string()); }
+                7 => { d.insert(8, digit.to_string()); }
+                _ => (),
+            }
+        }
+        let mut ft_candidates = Vec::<String>::new();
+        for digit in digits.iter() {
+            match digit.len() {
+                2 => (),
+                3 => (),
+                4 => (),
+                7 => (),
+                5 => {
+                    if includes(&d[&1], digit) {
+                        d.insert(3, digit.to_string());
+                    } else {
+                        if d.contains_key(&6) {
+                            if includes(digit, &d[&6]) {
+                                d.insert(5, digit.to_string());
+                            }else{
+                                d.insert(2, digit.to_string());
+                            }
+                        }else{
+                            ft_candidates.push(digit.to_string());
+                        }
+                    }
+                }
+                6 => {
+                    if includes(&d[&4], digit) {
+                        d.insert(9, digit.to_string());
+                    }else if includes(&d[&7], digit){
+                        d.insert(0, digit.to_string());
+                    }else {
+                        d.insert(6, digit.to_string());
+                    }
+                }
+                _ => ()
+            }
+        }
+        if !ft_candidates.is_empty() {
+            for ftc in ft_candidates {
+                if includes(&ftc, &d[&6]) {
+                    d.insert(5, ftc);
+                }else{
+                    d.insert(2, ftc);
+                }
+            }
+        }
+        for (k, v) in d {
+            let mut l: Vec<char> = v.chars().collect();
+            l.sort_unstable();
+            d2.insert(l.into_iter().collect(), k);
+        }
+        let nums: Vec<&str> = chunks[1].trim().split(' ').collect();
+        let mut sum = 0u64;
+        for num in nums {
+            let mut l: Vec<char> = num.chars().collect();
+            l.sort_unstable();
+            let s: String = l.into_iter().collect();
+            sum *= 10;
+            sum += d2[&s];
+            match num.len() {
+                2 => counter += 1,
+                3 => counter += 1,
+                4 => counter += 1,
+                7 => counter += 1,
+                _ => (),
+            }
+        }
+        big_sum += sum;
+    }
+    println!("{} {}", counter, big_sum);
+}
+
 fn main() {
     day_01();
     day_02();
@@ -401,4 +497,5 @@ fn main() {
     day_05();
     day_06();
     day_07();
+    day_08();
 }
