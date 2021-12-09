@@ -489,6 +489,87 @@ fn day_08() {
     println!("{} {}", counter, big_sum);
 }
 
+fn day_09() {
+    let file = File::open("09/input.txt").unwrap();
+    let reader = BufReader::new(file);
+    let field: Vec<Vec<u64>> = reader
+        .lines()
+        .flatten()
+        .map(|line| {
+            line.trim()
+                .chars()
+                .map(|c| c.to_digit(10).map(|n| n as u64))
+                .flatten()
+                .collect::<Vec<u64>>()
+        })
+        .collect();
+    let mut sum = 0u64;
+    let mut low_points = Vec::<((usize, usize), u64)>::new();
+    for i in 0..field.len() {
+        for j in 0..field[0].len() {
+            let mut down = true;
+            if i > 0 {
+                down &= field[i][j] < field[i - 1][j];
+            }
+            if j > 0 {
+                down &= field[i][j] < field[i][j - 1];
+            }
+            if i < field.len() - 1 {
+                down &= field[i][j] < field[i + 1][j];
+            }
+            if j < field[0].len() - 1 {
+                down &= field[i][j] < field[i][j + 1];
+            }
+            if down {
+                sum += field[i][j] + 1;
+                low_points.push(((i, j), field[i][j]));
+            }
+        }
+    }
+    let mut basins = Vec::<u64>::new();
+    for low_point in low_points {
+        let mut size = 1u64;
+        let mut stack = VecDeque::<((usize, usize), u64)>::new();
+        let mut basin = HashSet::<(usize, usize)>::new();
+        basin.insert(low_point.0);
+        stack.push_back(low_point);
+        while !stack.is_empty() {
+            let ((i, j), v) = stack.pop_back().unwrap();
+            if i > 0 && v < field[i - 1][j] && !basin.contains(&(i - 1, j)) && field[i - 1][j] < 9 {
+                size += 1;
+                stack.push_back(((i - 1, j), field[i - 1][j]));
+                basin.insert((i - 1, j));
+            }
+            if j > 0 && v < field[i][j - 1] && !basin.contains(&(i, j - 1)) && field[i][j - 1] < 9 {
+                size += 1;
+                stack.push_back(((i, j - 1), field[i][j - 1]));
+                basin.insert((i, j - 1));
+            }
+            if i < field.len() - 1
+                && v < field[i + 1][j]
+                && !basin.contains(&(i + 1, j))
+                && field[i + 1][j] < 9
+            {
+                size += 1;
+                stack.push_back(((i + 1, j), field[i + 1][j]));
+                basin.insert((i + 1, j));
+            }
+            if j < field[0].len() - 1
+                && v < field[i][j + 1]
+                && !basin.contains(&(i, j + 1))
+                && field[i][j + 1] < 9
+            {
+                size += 1;
+                stack.push_back(((i, j + 1), field[i][j + 1]));
+                basin.insert((i, j + 1));
+            }
+        }
+        basins.push(size);
+    }
+    basins.sort_unstable();
+    println!("{} {}", sum, basins.iter().rev().take(3).product::<u64>());
+}
+
 fn main() {
     day_01();
     day_02();
@@ -498,4 +579,5 @@ fn main() {
     day_06();
     day_07();
     day_08();
+    day_09();
 }
