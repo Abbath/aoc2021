@@ -431,10 +431,7 @@ fn day_08() {
         let mut ft_candidates = Vec::<String>::new();
         for digit in digits.iter() {
             match digit.len() {
-                2 => (),
-                3 => (),
-                4 => (),
-                7 => (),
+                2..=4 | 7 => (),
                 5 => {
                     if includes(&d[&1], digit) {
                         d.insert(3, digit.to_string());
@@ -483,10 +480,7 @@ fn day_08() {
             sum *= 10;
             sum += d2[&s];
             match num.len() {
-                2 => counter += 1,
-                3 => counter += 1,
-                4 => counter += 1,
-                7 => counter += 1,
+                2..=4 | 7 => counter += 1,
                 _ => (),
             }
         }
