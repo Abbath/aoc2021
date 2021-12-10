@@ -531,33 +531,25 @@ fn day_09() {
         stack.push_back(low_point);
         while !stack.is_empty() {
             let ((i, j), v) = stack.pop_back().unwrap();
-            if i > 0 && v < field[i - 1][j] && !basin.contains(&(i - 1, j)) && field[i - 1][j] < 9 {
-                size += 1;
-                stack.push_back(((i - 1, j), field[i - 1][j]));
-                basin.insert((i - 1, j));
+            let mut neighbours = Vec::<(usize, usize)>::new();
+            if i > 0 {
+                neighbours.push((i - 1, j));
             }
-            if j > 0 && v < field[i][j - 1] && !basin.contains(&(i, j - 1)) && field[i][j - 1] < 9 {
-                size += 1;
-                stack.push_back(((i, j - 1), field[i][j - 1]));
-                basin.insert((i, j - 1));
+            if j > 0 {
+                neighbours.push((i, j - 1));
             }
-            if i < field.len() - 1
-                && v < field[i + 1][j]
-                && !basin.contains(&(i + 1, j))
-                && field[i + 1][j] < 9
-            {
-                size += 1;
-                stack.push_back(((i + 1, j), field[i + 1][j]));
-                basin.insert((i + 1, j));
+            if i < field.len() - 1 {
+                neighbours.push((i + 1, j));
             }
-            if j < field[0].len() - 1
-                && v < field[i][j + 1]
-                && !basin.contains(&(i, j + 1))
-                && field[i][j + 1] < 9
-            {
-                size += 1;
-                stack.push_back(((i, j + 1), field[i][j + 1]));
-                basin.insert((i, j + 1));
+            if j < field[0].len() - 1 {
+                neighbours.push((i, j + 1));
+            }
+            for (m, n) in neighbours {
+                if i > 0 && v < field[m][n] && !basin.contains(&(m, n)) && field[m][n] < 9 {
+                    size += 1;
+                    stack.push_back(((m, n), field[m][n]));
+                    basin.insert((m, n));
+                }
             }
         }
         basins.push(size);
