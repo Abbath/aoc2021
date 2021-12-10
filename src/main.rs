@@ -402,6 +402,15 @@ fn day_08() {
         }
         true
     };
+    let diff = |a: &str, b: &str| {
+        let mut s = String::from("");
+        for c in a.chars() {
+            if !b.contains(c) {
+                s.push(c);
+            }
+        }
+        s
+    };
     let file = File::open("08/input.txt").unwrap();
     let reader = BufReader::new(file);
     let mut counter = 0u64;
@@ -428,21 +437,17 @@ fn day_08() {
                 _ => (),
             }
         }
-        let mut ft_candidates = Vec::<String>::new();
+        let fmo = diff(&d[&4], &d[&1]);
         for digit in digits.iter() {
             match digit.len() {
                 2..=4 | 7 => (),
                 5 => {
                     if includes(&d[&1], digit) {
                         d.insert(3, digit.to_string());
-                    } else if d.contains_key(&6) {
-                        if includes(digit, &d[&6]) {
-                            d.insert(5, digit.to_string());
-                        } else {
-                            d.insert(2, digit.to_string());
-                        }
+                    } else if includes(&fmo, digit) {
+                        d.insert(5, digit.to_string());
                     } else {
-                        ft_candidates.push(digit.to_string());
+                        d.insert(2, digit.to_string());
                     }
                 }
                 6 => {
@@ -455,15 +460,6 @@ fn day_08() {
                     }
                 }
                 _ => (),
-            }
-        }
-        if !ft_candidates.is_empty() {
-            for ftc in ft_candidates {
-                if includes(&ftc, &d[&6]) {
-                    d.insert(5, ftc);
-                } else {
-                    d.insert(2, ftc);
-                }
             }
         }
         for (k, v) in d {
@@ -570,6 +566,51 @@ fn day_09() {
     println!("{} {}", sum, basins.iter().rev().take(3).product::<u64>());
 }
 
+fn day_10() {
+    let file = File::open("10/input.txt").unwrap();
+    let reader = BufReader::new(file);
+    let mut score = 0u64;
+    let mut scores = Vec::<u64>::new();
+    let w = HashMap::from([
+        (')', ('(', 3)),
+        (']', ('[', 57)),
+        ('}', ('{', 1197)),
+        ('>', ('<', 25137)),
+    ]);
+    let w2 = HashMap::from([('(', 1), ('[', 2), ('{', 3), ('<', 4)]);
+    for line in reader.lines().flatten() {
+        let mut stack = Vec::<char>::new();
+        for char in line.trim().chars() {
+            match char {
+                '{' | '[' | '(' | '<' => stack.push(char),
+                '}' | ']' | ')' | '>' => {
+                    if stack.is_empty() {
+                        break;
+                    } else if stack.last().unwrap_or(&' ') == &w[&char].0 {
+                        stack.pop();
+                    } else {
+                        stack.clear();
+                        score += w[&char].1;
+                        break;
+                    }
+                }
+                _ => (),
+            }
+        }
+        if !stack.is_empty() {
+            let mut score2 = 0u64;
+            while !stack.is_empty() {
+                let c = stack.pop().unwrap();
+                score2 *= 5;
+                score2 += w2[&c];
+            }
+            scores.push(score2);
+        }
+    }
+    scores.sort_unstable();
+    println!("{} {}", score, scores[scores.len() / 2]);
+}
+
 fn main() {
     day_01();
     day_02();
@@ -580,4 +621,5 @@ fn main() {
     day_07();
     day_08();
     day_09();
+    day_10();
 }
