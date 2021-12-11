@@ -603,6 +603,93 @@ fn day_10() {
     println!("{} {}", score, scores[scores.len() / 2]);
 }
 
+fn day_11() {
+    let find_homies = |(i, j), rows: usize, cols: usize| {
+        let mut neigbours = VecDeque::<(usize, usize)>::new();
+        if i > 0 {
+            neigbours.push_back((i - 1, j));
+            if j > 0 {
+                neigbours.push_back((i - 1, j - 1));
+            }
+        }
+        if j > 0 {
+            neigbours.push_back((i, j - 1));
+            if i < rows - 1 {
+                neigbours.push_back((i + 1, j - 1));
+            }
+        }
+        if i < rows - 1 {
+            neigbours.push_back((i + 1, j));
+            if j < cols - 1 {
+                neigbours.push_back((i + 1, j + 1));
+            }
+        }
+        if j < cols - 1 {
+            neigbours.push_back((i, j + 1));
+            if i > 0 {
+                neigbours.push_back((i - 1, j + 1));
+            }
+        }
+        neigbours
+    };
+    let file = File::open("11/input.txt").unwrap();
+    let reader = BufReader::new(file);
+    let mut field: Vec<Vec<u64>> = reader
+        .lines()
+        .flatten()
+        .map(|line| {
+            line.trim()
+                .chars()
+                .map(|c| c.to_digit(10).map(|n| n as u64))
+                .flatten()
+                .collect::<Vec<u64>>()
+        })
+        .collect();
+    let mut flashed = Vec::<bool>::new();
+    flashed.resize(field.len() * field[0].len(), false);
+    let mut flashes = 0u64;
+    let rows = field.len();
+    let cols = field[0].len();
+    for step in 0..1000 {
+        let sum: u64 = field.iter().map(|v| v.iter().sum::<u64>()).sum();
+        if sum == 0 {
+            println!("{}", step);
+            break;
+        }
+        for i in 0..rows {
+            for j in 0..cols {
+                field[i][j] += 1;
+                if field[i][j] > 9 && !flashed[i * cols + j] {
+                    flashed[i * cols + j] = true;
+                    flashes += 1;
+                    let mut stack = VecDeque::<(usize, usize)>::new();
+                    stack.append(&mut find_homies((i, j), rows, cols));
+                    while !stack.is_empty() {
+                        let (m, n) = stack.pop_front().unwrap();
+                        field[m][n] += 1;
+                        if !flashed[m * cols + n] && field[m][n] > 9 {
+                            flashed[m * cols + n] = true;
+                            flashes += 1;
+                            stack.append(&mut find_homies((m, n), rows, cols));
+                        }
+                    }
+                }
+            }
+        }
+        for i in 0..rows {
+            for j in 0..cols {
+                if flashed[i * cols + j] {
+                    flashed[i * cols + j] = false;
+                    field[i][j] = 0;
+                }
+            }
+        }
+        if step == 99 {
+            print!("{} ", flashes);
+        }
+    }
+}
+
 fn main() {
     day_01();
     day_02();
@@ -614,4 +701,5 @@ fn main() {
     day_08();
     day_09();
     day_10();
+    day_11();
 }
