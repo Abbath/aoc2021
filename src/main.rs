@@ -721,35 +721,14 @@ fn day_12() {
         matrix[(i * counter + j) as usize] = 1;
         matrix[(j * counter + i) as usize] = 1;
     }
-    fn traverse(
-        v: u64,
-        p: Vec<u64>,
-        counter: u64,
-        (m, s, e): (&Vec<u64>, u64, u64),
-        mv: &HashMap<u64, bool>,
-    ) -> u64 {
-        if v == e {
-            return 1;
-        }
-        let mut res = 0u64;
-        for i in 0..counter {
-            if m[(v * counter + i) as usize] == 1 {
-                if (!mv[&v] && p.contains(&v)) || i == s {
-                    continue;
-                }
-                let path = [p.clone(), vec![v]].concat();
-                res += traverse(i, path, counter, (m, s, e), mv);
-            }
-        }
-        res
-    }
     fn traverse2(
         v: u64,
-        p: Vec<u64>,
+        p: HashSet<u64>,
         counter: u64,
         (m, s, e): (&Vec<u64>, u64, u64),
         mv: &HashMap<u64, bool>,
         dup: Option<u64>,
+        is_dup: bool,
     ) -> u64 {
         if v == e {
             return 1;
@@ -762,25 +741,39 @@ fn day_12() {
                 }
                 let mut d = dup;
                 if !mv[&v] && p.contains(&v) {
-                    match dup {
-                        None => d = Some(v),
-                        Some(_) => continue,
+                    if is_dup {
+                        match dup {
+                            None => d = Some(v),
+                            Some(_) => continue,
+                        }
+                    } else {
+                        continue;
                     }
                 }
-                let path = [p.clone(), vec![v]].concat();
-                res += traverse2(i, path, counter, (m, s, e), mv, d);
+                let mut path = p.clone();
+                path.insert(v);
+                res += traverse2(i, path, counter, (m, s, e), mv, d, is_dup);
             }
         }
         res
     }
-    let sum = traverse(start, vec![], counter, (&matrix, start, end), &map_vert);
-    let sum2 = traverse2(
+    let sum = traverse2(
         start,
-        vec![],
+        HashSet::<u64>::new(),
         counter,
         (&matrix, start, end),
         &map_vert,
         None,
+        false,
+    );
+    let sum2 = traverse2(
+        start,
+        HashSet::<u64>::new(),
+        counter,
+        (&matrix, start, end),
+        &map_vert,
+        None,
+        true,
     );
     println!("{} {}", sum, sum2);
 }
