@@ -394,22 +394,14 @@ fn day_07() {
 }
 
 fn day_08() {
-    let includes = |a: &str, b: &str| -> bool {
+    let intersect = |a: &str, b: &str| -> i32 {
+        let mut res = 0;
         for c in a.chars() {
-            if !b.contains(c) {
-                return false;
+            if b.contains(c) {
+                res += 1;
             }
         }
-        true
-    };
-    let diff = |a: &str, b: &str| {
-        let mut s = String::from("");
-        for c in a.chars() {
-            if !b.contains(c) {
-                s.push(c);
-            }
-        }
-        s
+        res
     };
     let file = File::open("08/input.txt").unwrap();
     let reader = BufReader::new(file);
@@ -437,23 +429,22 @@ fn day_08() {
                 _ => (),
             }
         }
-        let fmo = diff(&d[&4], &d[&1]);
         for digit in digits.iter() {
             match digit.len() {
                 2..=4 | 7 => (),
                 5 => {
-                    if includes(&d[&1], digit) {
+                    if intersect(&d[&1], digit) == 2 {
                         d.insert(3, digit.to_string());
-                    } else if includes(&fmo, digit) {
+                    } else if intersect(&d[&4], digit) == 3 {
                         d.insert(5, digit.to_string());
                     } else {
                         d.insert(2, digit.to_string());
                     }
                 }
                 6 => {
-                    if includes(&d[&4], digit) {
+                    if intersect(&d[&4], digit) == 4 {
                         d.insert(9, digit.to_string());
-                    } else if includes(&d[&7], digit) {
+                    } else if intersect(&d[&7], digit) == 3 {
                         d.insert(0, digit.to_string());
                     } else {
                         d.insert(6, digit.to_string());
