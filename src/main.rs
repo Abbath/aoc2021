@@ -681,6 +681,110 @@ fn day_11() {
     }
 }
 
+fn day_12() {
+    let file = File::open("12/input.txt").unwrap();
+    let reader = BufReader::new(file);
+    let mut vert_map = HashMap::<String, u64>::new();
+    let mut counter = 0u64;
+    let mut map_vert = HashMap::<u64, bool>::new();
+    let graph: HashSet<(u64, u64)> = reader
+        .lines()
+        .flatten()
+        .map(|line| {
+            let v: Vec<&str> = line.trim().split('-').collect();
+            let v1 = v[0];
+            let v2 = v[1];
+            let idx1 = if !vert_map.contains_key(v1) {
+                vert_map.insert(v1.to_string(), counter);
+                map_vert.insert(counter, v1.to_uppercase().eq(v1));
+                counter += 1;
+                counter - 1
+            } else {
+                vert_map[v1]
+            };
+            let idx2 = if !vert_map.contains_key(v2) {
+                vert_map.insert(v2.to_string(), counter);
+                map_vert.insert(counter, v2.to_uppercase().eq(v2));
+                counter += 1;
+                counter - 1
+            } else {
+                vert_map[v2]
+            };
+            (idx1, idx2)
+        })
+        .collect();
+    let start = vert_map["start"];
+    let end = vert_map["end"];
+    let mut matrix = Vec::<u64>::new();
+    matrix.resize((counter * counter) as usize, 0);
+    for (i, j) in graph {
+        matrix[(i * counter + j) as usize] = 1;
+        matrix[(j * counter + i) as usize] = 1;
+    }
+    fn traverse(
+        v: u64,
+        p: Vec<u64>,
+        counter: u64,
+        (m, s, e): (&Vec<u64>, u64, u64),
+        mv: &HashMap<u64, bool>,
+    ) -> u64 {
+        if v == e {
+            return 1;
+        }
+        let mut res = 0u64;
+        for i in 0..counter {
+            if m[(v * counter + i) as usize] == 1 {
+                if (!mv[&v] && p.contains(&v)) || i == s {
+                    continue;
+                }
+                let path = [p.clone(), vec![v]].concat();
+                res += traverse(i, path, counter, (m, s, e), mv);
+            }
+        }
+        res
+    }
+    fn traverse2(
+        v: u64,
+        p: Vec<u64>,
+        counter: u64,
+        (m, s, e): (&Vec<u64>, u64, u64),
+        mv: &HashMap<u64, bool>,
+        dup: Option<u64>,
+    ) -> u64 {
+        if v == e {
+            return 1;
+        }
+        let mut res = 0u64;
+        for i in 0..counter {
+            if m[(v * counter + i) as usize] == 1 {
+                if i == s {
+                    continue;
+                }
+                let mut d = dup;
+                if !mv[&v] && p.contains(&v) {
+                    match dup {
+                        None => d = Some(v),
+                        Some(_) => continue,
+                    }
+                }
+                let path = [p.clone(), vec![v]].concat();
+                res += traverse2(i, path, counter, (m, s, e), mv, d);
+            }
+        }
+        res
+    }
+    let sum = traverse(start, vec![], counter, (&matrix, start, end), &map_vert);
+    let sum2 = traverse2(
+        start,
+        vec![],
+        counter,
+        (&matrix, start, end),
+        &map_vert,
+        None,
+    );
+    println!("{} {}", sum, sum2);
+}
+
 fn main() {
     day_01();
     day_02();
@@ -693,4 +797,5 @@ fn main() {
     day_09();
     day_10();
     day_11();
+    day_12();
 }
