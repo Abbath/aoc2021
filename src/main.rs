@@ -2,6 +2,7 @@ use std::cmp::Ordering;
 use std::collections::{HashMap, HashSet, VecDeque};
 use std::fs::{read_to_string, File};
 use std::io::{prelude::*, BufReader};
+use std::u64;
 
 fn day_01() {
     let file = File::open("01/input.txt").unwrap();
@@ -778,6 +779,76 @@ fn day_12() {
     println!("{} {}", sum, sum2);
 }
 
+fn day_13() {
+    let file = File::open("13/input.txt").unwrap();
+    let reader = BufReader::new(file);
+    let mut points = Vec::<(u64, u64)>::new();
+    let mut folds = Vec::<(u64, u64)>::new();
+    let mut max_x = 0;
+    let mut max_y = 0;
+    for line in reader.lines().flatten() {
+        if line.is_empty() {
+            continue;
+        }
+        if line.starts_with("fold") {
+            let f: Vec<&str> = line.trim().split(' ').collect();
+            let ff: Vec<&str> = f[2].split('=').collect();
+            folds.push((if ff[0] == "x" { 0 } else { 1 }, ff[1].parse().unwrap()));
+        } else {
+            let v: Vec<u64> = line
+                .trim()
+                .split(',')
+                .map(|s| s.trim().parse().unwrap())
+                .collect();
+            if v[0] > max_x {
+                max_x = v[0];
+            }
+            if v[1] > max_y {
+                max_y = v[1];
+            }
+            points.push((v[0], v[1]));
+        }
+    }
+    let rows = max_y as usize + 1;
+    let cols = max_x as usize + 1;
+    let mut small_rows = rows;
+    let mut small_cols = cols;
+    let mut board: Vec<_> = vec![0; rows * cols];
+    for (x, y) in points {
+        board[y as usize * cols + x as usize] = 1;
+    }
+    for (n, f) in folds.iter().enumerate() {
+        let fold = (f.0 as usize, f.1 as usize);
+        for y in (if fold.0 == 1 { fold.1 + 1 } else { 0 })..small_rows {
+            for x in (if fold.0 == 0 { fold.1 + 1 } else { 0 })..small_cols {
+                if board[y * cols + x] == 1 {
+                    if fold.0 == 0 {
+                        board[y * cols + (2 * fold.1 - x)] = 1;
+                        board[y * cols + x] = 0;
+                    } else {
+                        board[(2 * fold.1 - y) * cols + x] = 1;
+                        board[y * cols + x] = 0;
+                    }
+                }
+            }
+        }
+        if fold.0 == 0 {
+            small_cols = fold.1;
+        } else {
+            small_rows = fold.1;
+        }
+        if n == 0 {
+            let sum: u64 = board.iter().sum();
+            println!("{}", sum);
+        }
+    }
+    for y in 0..small_rows {
+        for x in 0..small_cols {
+            print!("{}", if board[y * cols + x] == 1 { '#' } else { '.' });
+        }
+        println!();
+    }
+}
 fn main() {
     day_01();
     day_02();
@@ -791,4 +862,5 @@ fn main() {
     day_10();
     day_11();
     day_12();
+    day_13();
 }
