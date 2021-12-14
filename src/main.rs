@@ -339,13 +339,10 @@ fn day_06() {
         .map(|s| s.parse::<u64>())
         .flatten()
         .for_each(|n| fishes[n as usize] += 1);
-    for _ in 0..80u64 {
-        let n = fishes.pop_front().unwrap();
-        fishes[6] += n;
-        fishes.push_back(n);
-    }
-    print!("{} ", fishes.iter().sum::<u64>());
-    for _ in 80..256u64 {
+    for n in 0..256u64 {
+        if n == 80 {
+            print!("{} ", fishes.iter().sum::<u64>());
+        }
         let n = fishes.pop_front().unwrap();
         fishes[6] += n;
         fishes.push_back(n);
@@ -849,6 +846,69 @@ fn day_13() {
         println!();
     }
 }
+
+fn day_14() {
+    let file = File::open("14/input.txt").unwrap();
+    let reader = BufReader::new(file);
+    let mut old_sequence: String = String::from("");
+    let mut transitions = HashMap::<String, char>::new();
+    let mut counters = HashMap::<char, u64>::new();
+    let mut pair_counters = HashMap::<String, u64>::new();
+    for (i, line) in reader.lines().flatten().enumerate() {
+        if line.is_empty() {
+            continue;
+        }
+        if i == 0 {
+            old_sequence = line.trim().to_string();
+        } else {
+            let kv: Vec<&str> = line.trim().split("->").collect();
+            transitions.insert(
+                kv[0].trim().to_string(),
+                kv[1].trim().chars().next().unwrap(),
+            );
+            pair_counters.insert(kv[0].trim().to_string(), 0);
+        }
+    }
+    for c in old_sequence.chars() {
+        *counters.entry(c).or_insert(0) += 1;
+    }
+    for i in 0..old_sequence.len() - 1 {
+        *pair_counters.get_mut(&old_sequence[i..=i + 1]).unwrap() += 1;
+    }
+    for n in 0..40 {
+        if n == 10 {
+            print!(
+                "{} ",
+                counters.values().max().unwrap() - counters.values().min().unwrap()
+            );
+        }
+        let mut to_add = HashMap::<String, u64>::new();
+        for (k, v) in pair_counters.iter() {
+            if v > &0 {
+                *counters.entry(transitions[k]).or_insert(0) += v;
+                *to_add
+                    .entry(
+                        [k.chars().next().unwrap(), transitions[k]]
+                            .iter()
+                            .collect::<String>(),
+                    )
+                    .or_insert(0) += v;
+                *to_add
+                    .entry(
+                        [transitions[k], k.chars().nth(1).unwrap()]
+                            .iter()
+                            .collect::<String>(),
+                    )
+                    .or_insert(0) += v;
+            }
+        }
+        pair_counters = to_add;
+    }
+    println!(
+        "{}",
+        counters.values().max().unwrap() - counters.values().min().unwrap()
+    );
+}
 fn main() {
     day_01();
     day_02();
@@ -863,4 +923,5 @@ fn main() {
     day_11();
     day_12();
     day_13();
+    day_14();
 }
