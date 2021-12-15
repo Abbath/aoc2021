@@ -1,5 +1,5 @@
-use std::cmp::Ordering;
-use std::collections::{HashMap, HashSet, VecDeque};
+use std::cmp::{Ordering, Reverse};
+use std::collections::{BinaryHeap, HashMap, HashSet, VecDeque};
 use std::fs::{read_to_string, File};
 use std::io::{prelude::*, BufReader};
 use std::u64;
@@ -7,30 +7,17 @@ use std::u64;
 fn day_01() {
     let file = File::open("01/input.txt").unwrap();
     let reader = BufReader::new(file);
-    let mut first = true;
-    let mut counter = 0;
-    let mut old = 0u64;
-    let mut nums = Vec::<u64>::new();
-    for line in reader.lines().flatten() {
-        if let Ok(num) = line.parse::<u64>() {
-            if first {
-                first = false;
-            } else if num > old {
-                counter += 1;
-            }
-            nums.push(num);
-            old = num;
-        }
-    }
-    let mut counter2 = 0u64;
-    for i in 0..nums.len() - 3 {
-        let sum_a: u64 = (&nums[i..i + 3]).iter().sum();
-        let sum_b: u64 = (&nums[i + 1..i + 4]).iter().sum();
-        if sum_b > sum_a {
-            counter2 += 1;
-        }
-    }
-    println!("{} {}", counter, counter2);
+    let nums: Vec<u64> = reader
+        .lines()
+        .flatten()
+        .map(|s| s.parse::<u64>().unwrap())
+        .collect();
+    let count = |ns: &Vec<u64>, skip| {
+        ns.iter()
+            .zip(ns.iter().skip(skip))
+            .fold(0, |c, (&x, &y)| if x < y { c + 1 } else { c })
+    };
+    println!("{} {}", count(&nums, 1), count(&nums, 3));
 }
 
 fn day_02() {
@@ -909,6 +896,93 @@ fn day_14() {
         counters.values().max().unwrap() - counters.values().min().unwrap()
     );
 }
+
+fn day_15() {
+    let file = File::open("15/input.txt").unwrap();
+    let reader = BufReader::new(file);
+    let field: Vec<Vec<usize>> = reader
+        .lines()
+        .flatten()
+        .map(|line| {
+            line.trim()
+                .chars()
+                .map(|c| c.to_digit(10).map(|n| n as usize))
+                .flatten()
+                .collect::<Vec<usize>>()
+        })
+        .collect();
+    let mut graph = Vec::<HashMap<usize, usize>>::new();
+    graph.resize(field.len() * field[0].len(), HashMap::<usize, usize>::new());
+    let mut big_field = Vec::<Vec<usize>>::new();
+    big_field.resize(field.len() * 5, vec![0; field[0].len() * 5]);
+    let mut big_graph = Vec::<HashMap<usize, usize>>::new();
+    big_graph.resize(
+        big_field.len() * big_field[0].len(),
+        HashMap::<usize, usize>::new(),
+    );
+    for i in 0..field.len() {
+        for j in 0..field[0].len() {
+            for m in 0..5 {
+                for n in 0..5 {
+                    let val = field[i][j] + m + n;
+                    big_field[field.len() * m + i][n * field[0].len() + j] =
+                        if val <= 9 { val } else { val - 9 }
+                }
+            }
+        }
+    }
+    let fill_graph = |graph: &mut Vec<HashMap<usize, usize>>, field: &Vec<Vec<usize>>| {
+        let sat = |r: usize, c: usize| r * field[0].len() + c;
+        for i in 0..field.len() {
+            for j in 0..field[0].len() {
+                let r = sat(i, j);
+                if i > 0 {
+                    graph[r].insert(sat(i - 1, j), field[i - 1][j]);
+                }
+                if j > 0 {
+                    graph[r].insert(sat(i, j - 1), field[i][j - 1]);
+                }
+                if i < field.len() - 1 {
+                    graph[r].insert(sat(i + 1, j), field[i + 1][j]);
+                }
+                if j < field[0].len() - 1 {
+                    graph[r].insert(sat(i, j + 1), field[i][j + 1]);
+                }
+            }
+        }
+    };
+    fill_graph(&mut graph, &field);
+    fill_graph(&mut big_graph, &big_field);
+    let astar = |graph: &Vec<HashMap<usize, usize>>, field: &Vec<Vec<usize>>| {
+        let h = |u: usize| field[0].len() - u % field[0].len() + field.len() - u / field[0].len();
+        let rows = field.len() * field[0].len();
+        let mut open_set = BinaryHeap::new();
+        open_set.push((Reverse(0), 0));
+        let mut came_from = HashMap::<usize, usize>::new();
+        let mut score = vec![usize::MAX; rows];
+        score[0] = 0;
+        while let Some((Reverse(_), idx)) = open_set.pop() {
+            if idx == rows - 1 {
+                break;
+            }
+            for (&k, &v) in graph[idx].iter() {
+                let new_score = score[idx] + v;
+                if new_score < score[k] {
+                    came_from.insert(k, idx);
+                    score[k] = new_score;
+                    open_set.push((Reverse(new_score + h(k)), k));
+                }
+            }
+        }
+        score[rows - 1]
+    };
+    print!(
+        "{} {}",
+        astar(&graph, &field),
+        astar(&big_graph, &big_field)
+    );
+}
+
 fn main() {
     day_01();
     day_02();
@@ -924,4 +998,5 @@ fn main() {
     day_12();
     day_13();
     day_14();
+    day_15();
 }
