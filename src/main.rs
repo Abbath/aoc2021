@@ -1,4 +1,4 @@
-use std::cmp::{Ordering, Reverse};
+use std::cmp::{max, Ordering, Reverse};
 use std::collections::{BinaryHeap, HashMap, HashSet, VecDeque};
 use std::fs::{read_to_string, File};
 use std::io::{prelude::*, BufReader};
@@ -23,24 +23,25 @@ fn day_01() {
 fn day_02() {
     let file = File::open("02/input.txt").unwrap();
     let reader = BufReader::new(file);
-    let mut pos = (0u64, 0u64);
+    let mut pos = (0i64, 0i64);
     let mut pos2 = (0i64, 0i64);
     let mut aim = 0i64;
     for line in reader.lines().flatten() {
         let words: Vec<&str> = line.split(' ').collect();
+        let val = words[1].parse::<i64>().unwrap();
         match words[0] {
             "forward" => {
-                pos.0 += words[1].parse::<u64>().unwrap();
-                pos2.0 += words[1].parse::<i64>().unwrap();
-                pos2.1 += aim * words[1].parse::<i64>().unwrap();
+                pos.0 += val;
+                pos2.0 += val;
+                pos2.1 += aim * val;
             }
             "up" => {
-                pos.1 -= words[1].parse::<u64>().unwrap();
-                aim -= words[1].parse::<i64>().unwrap();
+                pos.1 -= val;
+                aim -= val;
             }
             "down" => {
-                pos.1 += words[1].parse::<u64>().unwrap();
-                aim += words[1].parse::<i64>().unwrap()
+                pos.1 += val;
+                aim += val;
             }
             _ => (),
         }
@@ -53,129 +54,93 @@ fn day_03() {
     let reader = BufReader::new(file);
     let mut counters0 = Vec::<u64>::new();
     let mut counters1 = Vec::<u64>::new();
-    let mut nums = Vec::<u64>::new();
-    for line in reader.lines().flatten() {
-        if counters0.is_empty() {
-            counters0.resize(line.len(), 0);
-            counters1.resize(line.len(), 0);
-        }
-        for (i, c) in line.chars().enumerate() {
-            match c {
-                '1' => counters1[i] += 1,
-                '0' => counters0[i] += 1,
-                _ => (),
+    let nums = reader
+        .lines()
+        .flatten()
+        .map(|line| {
+            if counters0.is_empty() {
+                counters0.resize(line.len(), 0);
+                counters1.resize(line.len(), 0);
             }
-        }
-        nums.push(u64::from_str_radix(&line, 2).unwrap());
-    }
-    let mut gamma = 0u64;
-    let mut epsilon = 0u64;
-    for i in 0..counters0.len() {
-        if counters1[i] > counters0[i] {
-            gamma |= 1 << (counters0.len() - i - 1);
-        } else {
-            epsilon |= 1 << (counters0.len() - i - 1);
-        }
-    }
-    let mut set_oxygen = HashSet::<u64>::new();
-    let mut set_co2 = HashSet::<u64>::new();
-    let mut oxygen = 0u64;
-    let mut co2 = 0u64;
-    for num in nums.iter() {
-        set_oxygen.insert(*num);
-        set_co2.insert(*num);
-    }
-    let mut ox_counters1 = counters1.clone();
-    let mut ox_counters0 = counters0.clone();
-    'outer1: for bit in 0..ox_counters0.len() {
-        let mut temp = Vec::<u64>::new();
-        for num in nums.iter() {
-            if !set_oxygen.contains(num) {
-                continue;
+            for (i, c) in line.chars().enumerate() {
+                match c {
+                    '1' => counters1[i] += 1,
+                    '0' => counters0[i] += 1,
+                    _ => (),
+                }
             }
-            match ox_counters1[bit].cmp(&ox_counters0[bit]) {
-                Ordering::Greater => {
-                    if num & 1 << (ox_counters0.len() - bit - 1) == 0 {
-                        set_oxygen.remove(num);
-                        temp.push(*num);
+            u64::from_str_radix(&line, 2).unwrap()
+        })
+        .collect();
+    let len = counters0.len();
+    let mut ge = [0u64, 0u64];
+    counters0
+        .iter()
+        .zip(counters1.iter())
+        .enumerate()
+        .for_each(|(i, (x, y))| {
+            ge[if y > x { 0 } else { 1 }] |= 1 << (len - i - 1);
+        });
+    let compute = |nums: &Vec<u64>, c0: &Vec<u64>, c1: &Vec<u64>, f: fn(u64) -> bool| {
+        let mut res = 0u64;
+        let mut set = HashSet::<u64>::new();
+        let mut counters1 = c1.clone();
+        let mut counters0 = c0.clone();
+        let len = counters0.len();
+        for &num in nums.iter() {
+            set.insert(num);
+        }
+        'outer: for bit in 0..counters0.len() {
+            let mut temp = Vec::<u64>::new();
+            for num in nums.iter() {
+                if !set.contains(num) {
+                    continue;
+                }
+                match counters1[bit].cmp(&counters0[bit]) {
+                    Ordering::Greater => {
+                        if f(num & 1 << (len - bit - 1)) {
+                            set.remove(num);
+                            temp.push(*num);
+                        }
+                    }
+                    Ordering::Less => {
+                        if !f(num & 1 << (len - bit - 1)) {
+                            set.remove(num);
+                            temp.push(*num);
+                        }
+                    }
+                    Ordering::Equal => {
+                        if f(num & 1 << (len - bit - 1)) {
+                            set.remove(num);
+                            temp.push(*num);
+                        }
                     }
                 }
-                Ordering::Less => {
-                    if num & 1 << (ox_counters0.len() - bit - 1) != 0 {
-                        set_oxygen.remove(num);
-                        temp.push(*num);
+                if set.len() == 1 {
+                    for e in set.drain() {
+                        res = e;
                     }
-                }
-                Ordering::Equal => {
-                    if num & 1 << (ox_counters0.len() - bit - 1) == 0 {
-                        set_oxygen.remove(num);
-                        temp.push(*num);
-                    }
+                    break 'outer;
                 }
             }
-            if set_oxygen.len() == 1 {
-                for e in set_oxygen.drain() {
-                    oxygen = e;
-                }
-                break 'outer1;
-            }
-        }
-        for n in temp {
-            for i in 0..ox_counters0.len() {
-                if n & (1 << (ox_counters0.len() - i - 1)) == 0 {
-                    ox_counters0[i] -= 1;
-                } else {
-                    ox_counters1[i] -= 1;
-                }
-            }
-        }
-    }
-    let mut co_counters1 = counters1.clone();
-    let mut co_counters0 = counters0.clone();
-    'outer2: for bit in 0..co_counters0.len() {
-        let mut temp = Vec::<u64>::new();
-        for num in nums.iter() {
-            if !set_co2.contains(num) {
-                continue;
-            }
-            match co_counters1[bit].cmp(&co_counters0[bit]) {
-                Ordering::Greater => {
-                    if num & (1 << (co_counters0.len() - bit - 1)) != 0 {
-                        set_co2.remove(num);
-                        temp.push(*num);
-                    }
-                }
-                Ordering::Less => {
-                    if num & (1 << (counters0.len() - bit - 1)) == 0 {
-                        set_co2.remove(num);
-                        temp.push(*num);
-                    }
-                }
-                Ordering::Equal => {
-                    if num & 1 << (co_counters0.len() - bit - 1) != 0 {
-                        set_co2.remove(num);
-                        temp.push(*num);
+            for n in temp {
+                for i in 0..len {
+                    if n & (1 << (len - i - 1)) == 0 {
+                        counters0[i] -= 1;
+                    } else {
+                        counters1[i] -= 1;
                     }
                 }
             }
-            if set_co2.len() == 1 {
-                for e in set_co2.drain() {
-                    co2 = e;
-                }
-                break 'outer2;
-            }
         }
-        for n in temp {
-            for i in 0..co_counters0.len() {
-                if n & (1 << (co_counters0.len() - i - 1)) == 0 {
-                    co_counters0[i] -= 1;
-                } else {
-                    co_counters1[i] -= 1;
-                }
-            }
-        }
-    }
-    println!("{} {}", gamma * epsilon, oxygen * co2);
+        res
+    };
+    println!(
+        "{} {}",
+        ge[0] * ge[1],
+        compute(&nums, &counters0, &counters1, |x| x == 0)
+            * compute(&nums, &counters0, &counters1, |x| x != 0)
+    );
 }
 
 fn day_04() {
@@ -185,22 +150,20 @@ fn day_04() {
     let mut boards_n = Vec::<Vec<u64>>::new();
     let mut boards_c = Vec::<Vec<u64>>::new();
     let mut counter = 0u64;
+    let parse = |line: &str, delim: char| -> Vec<u64> {
+        line.split(delim)
+            .map(|s| s.parse::<u64>())
+            .flatten()
+            .collect()
+    };
     for (i, line) in reader.lines().flatten().enumerate() {
         if i == 0 {
-            nums = line
-                .split(',')
-                .map(|s| s.parse::<u64>())
-                .flatten()
-                .collect::<Vec<u64>>();
+            nums = parse(&line, ',');
         } else {
             if line.is_empty() {
                 continue;
             }
-            let row: Vec<u64> = line
-                .split(' ')
-                .map(|s| s.parse::<u64>())
-                .flatten()
-                .collect();
+            let row = parse(&line, ' ');
             if counter % 25 == 0 {
                 boards_n.push(vec![0; 25]);
                 boards_c.push(vec![0; 25]);
@@ -213,10 +176,6 @@ fn day_04() {
             }
         }
     }
-    let mut win1 = 0u64;
-    let mut win2 = 0u64;
-    let mut win3 = 0u64;
-    let mut win4 = 0u64;
     let mut first = true;
     let mut wins = vec![0; boards_n.len()];
     'outer: for n in nums {
@@ -227,36 +186,33 @@ fn day_04() {
                 }
             }
         }
+        let f = |i: usize| {
+            boards_c[i]
+                .iter()
+                .enumerate()
+                .filter(|(_, &v)| v == 0)
+                .map(|(k, _)| boards_n[i][k])
+                .sum::<u64>()
+        };
         for i in 0..boards_n.len() {
             for j in 0..5 {
-                let x: Vec<u64> = boards_c[i].iter().skip(j).step_by(5).copied().collect();
-                let y: Vec<u64> = boards_c[i].iter().skip(j * 5).take(5).copied().collect();
-                if x.iter().all(|a| *a == 1) || y.iter().all(|a| *a == 1) {
+                let x: bool = boards_c[i].iter().skip(j).step_by(5).all(|a| *a == 1);
+                let y: bool = boards_c[i].iter().skip(j * 5).take(5).all(|a| *a == 1);
+                if x || y {
                     if first {
                         first = false;
-                        win1 = n;
-                        for k in 0..25 {
-                            if boards_c[i][k] == 0 {
-                                win2 += boards_n[i][k];
-                            }
-                        }
+                        print!("{} ", n * f(i));
                     }
                     wins[i] = 1;
                     let s: u64 = wins.iter().sum();
                     if wins.len() - s as usize == 0 {
-                        win3 = n;
-                        for k in 0..25 {
-                            if boards_c[i][k] == 0 {
-                                win4 += boards_n[i][k];
-                            }
-                        }
+                        println!("{}", n * f(i));
                         break 'outer;
                     }
                 }
             }
         }
     }
-    println!("{} {}", win1 * win2, win3 * win4);
 }
 
 fn day_05() {
@@ -265,17 +221,17 @@ fn day_05() {
     let mut paths = HashMap::<(u64, u64), u64>::new();
     let mut paths2 = HashMap::<(u64, u64), u64>::new();
     for line in reader.lines().flatten() {
-        let dots: Vec<&str> = line.split("->").collect();
-        let dot1: Vec<u64> = dots[0]
-            .split(',')
-            .map(|s| s.trim().parse::<u64>())
-            .flatten()
+        let dots: Vec<Vec<u64>> = line
+            .split("->")
+            .map(|dot| {
+                dot.split(',')
+                    .map(|s| s.trim().parse::<u64>())
+                    .flatten()
+                    .collect()
+            })
             .collect();
-        let dot2: Vec<u64> = dots[1]
-            .split(',')
-            .map(|s| s.trim().parse::<u64>())
-            .flatten()
-            .collect();
+        let dot1 = &dots[0];
+        let dot2 = &dots[1];
         if dot1[0] == dot2[0] {
             let mut v = [dot1[1], dot2[1]];
             v.sort_unstable();
@@ -307,15 +263,9 @@ fn day_05() {
             }
         }
     }
-    let s = paths
-        .values()
-        .map(|x| if x > &1 { 1 } else { 0 })
-        .sum::<u64>();
-    let s2 = paths2
-        .values()
-        .map(|x| if x > &1 { 1 } else { 0 })
-        .sum::<u64>();
-    println!("{} {}", s, s2);
+    let f =
+        |p: &HashMap<(u64, u64), u64>| p.values().map(|x| if x > &1 { 1 } else { 0 }).sum::<u64>();
+    println!("{} {}", f(&paths), f(&paths2));
 }
 
 fn day_06() {
@@ -330,52 +280,42 @@ fn day_06() {
         if n == 80 {
             print!("{} ", fishes.iter().sum::<u64>());
         }
-        let n = fishes.pop_front().unwrap();
-        fishes[6] += n;
-        fishes.push_back(n);
+        if let Some(n) = fishes.pop_front() {
+            fishes[6] += n;
+            fishes.push_back(n);
+        }
     }
     println!("{}", fishes.iter().sum::<u64>());
 }
 
 fn day_07() {
     let line = read_to_string("07/input.txt").unwrap();
-    let mut poss = VecDeque::<u64>::new();
-    line.trim()
+    let poss: VecDeque<u64> = line
+        .trim()
         .split(',')
         .map(|s| s.parse::<u64>())
         .flatten()
-        .for_each(|n| poss.push_back(n));
+        .collect();
     let max = *poss.iter().max().unwrap();
     let min = *poss.iter().min().unwrap();
-    let mut min1 = u64::MAX;
-    let mut min2 = u64::MAX;
-    for i in min..=max {
-        let mut sum = 0u64;
-        for pos in poss.iter() {
-            let n = i64::abs(*pos as i64 - i as i64) as u64;
-            sum += n;
-            if sum >= min1 {
-                break;
+    let compute = |f: fn(u64) -> u64| {
+        let mut min0 = u64::MAX;
+        for i in min..=max {
+            let mut sum = 0u64;
+            for pos in poss.iter() {
+                let n = i64::abs(*pos as i64 - i as i64) as u64;
+                sum += f(n);
+                if sum >= min0 {
+                    break;
+                }
+            }
+            if sum < min0 {
+                min0 = sum;
             }
         }
-        if sum < min1 {
-            min1 = sum;
-        }
-    }
-    for i in min..=max {
-        let mut sum = 0u64;
-        for pos in poss.iter() {
-            let n = i64::abs(*pos as i64 - i as i64) as u64;
-            sum += n * (n + 1) / 2;
-            if sum >= min2 {
-                break;
-            }
-        }
-        if sum < min2 {
-            min2 = sum;
-        }
-    }
-    println!("{} {}", min1, min2);
+        min0
+    };
+    println!("{} {}", compute(|n| n), compute(|n| n * (n + 1) / 2));
 }
 
 fn day_08() {
@@ -418,22 +358,28 @@ fn day_08() {
             match digit.len() {
                 2..=4 | 7 => (),
                 5 => {
-                    if intersect(&d[&1], digit) == 2 {
-                        d.insert(3, digit.to_string());
-                    } else if intersect(&d[&4], digit) == 3 {
-                        d.insert(5, digit.to_string());
-                    } else {
-                        d.insert(2, digit.to_string());
-                    }
+                    d.insert(
+                        if intersect(&d[&1], digit) == 2 {
+                            3
+                        } else if intersect(&d[&4], digit) == 3 {
+                            5
+                        } else {
+                            2
+                        },
+                        digit.to_string(),
+                    );
                 }
                 6 => {
-                    if intersect(&d[&4], digit) == 4 {
-                        d.insert(9, digit.to_string());
-                    } else if intersect(&d[&7], digit) == 3 {
-                        d.insert(0, digit.to_string());
-                    } else {
-                        d.insert(6, digit.to_string());
-                    }
+                    d.insert(
+                        if intersect(&d[&4], digit) == 4 {
+                            9
+                        } else if intersect(&d[&7], digit) == 3 {
+                            0
+                        } else {
+                            6
+                        },
+                        digit.to_string(),
+                    );
                 }
                 _ => (),
             }
@@ -476,28 +422,35 @@ fn day_09() {
         })
         .collect();
     let mut sum = 0u64;
-    let mut low_points = Vec::<((usize, usize), u64)>::new();
-    for i in 0..field.len() {
-        for j in 0..field[0].len() {
-            let mut down = true;
-            if i > 0 {
-                down &= field[i][j] < field[i - 1][j];
-            }
-            if j > 0 {
-                down &= field[i][j] < field[i][j - 1];
-            }
-            if i < field.len() - 1 {
-                down &= field[i][j] < field[i + 1][j];
-            }
-            if j < field[0].len() - 1 {
-                down &= field[i][j] < field[i][j + 1];
-            }
-            if down {
-                sum += field[i][j] + 1;
-                low_points.push(((i, j), field[i][j]));
-            }
-        }
-    }
+    let low_points: Vec<((usize, usize), u64)> = (0..field.len())
+        .map(|i| {
+            (0..field[0].len())
+                .map(|j| {
+                    let mut down = true;
+                    if i > 0 {
+                        down &= field[i][j] < field[i - 1][j];
+                    }
+                    if j > 0 {
+                        down &= field[i][j] < field[i][j - 1];
+                    }
+                    if i < field.len() - 1 {
+                        down &= field[i][j] < field[i + 1][j];
+                    }
+                    if j < field[0].len() - 1 {
+                        down &= field[i][j] < field[i][j + 1];
+                    }
+                    if down {
+                        sum += field[i][j] + 1;
+                        Some(((i, j), field[i][j]))
+                    } else {
+                        None
+                    }
+                })
+                .flatten()
+                .collect::<Vec<((usize, usize), u64)>>()
+        })
+        .flatten()
+        .collect();
     let mut basins = Vec::<u64>::new();
     for low_point in low_points {
         let mut size = 1u64;
@@ -505,8 +458,7 @@ fn day_09() {
         let mut basin = HashSet::<(usize, usize)>::new();
         basin.insert(low_point.0);
         stack.push_back(low_point);
-        while !stack.is_empty() {
-            let ((i, j), v) = stack.pop_back().unwrap();
+        while let Some(((i, j), v)) = stack.pop_back() {
             let mut neighbours = Vec::<(usize, usize)>::new();
             if i > 0 {
                 neighbours.push((i - 1, j));
@@ -554,7 +506,7 @@ fn day_10() {
                 '}' | ']' | ')' | '>' => {
                     if stack.is_empty() {
                         break;
-                    } else if stack.last().unwrap_or(&' ') == &w[&char].0 {
+                    } else if stack.last().unwrap() == &w[&char].0 {
                         stack.pop();
                     } else {
                         stack.clear();
@@ -567,8 +519,7 @@ fn day_10() {
         }
         if !stack.is_empty() {
             let mut score2 = 0u64;
-            while !stack.is_empty() {
-                let c = stack.pop().unwrap();
+            while let Some(c) = stack.pop() {
                 score2 *= 5;
                 score2 += w2[&c];
             }
@@ -640,8 +591,7 @@ fn day_11() {
                     flashes += 1;
                     let mut stack = VecDeque::<(usize, usize)>::new();
                     stack.append(&mut find_homies((i, j), rows, cols));
-                    while !stack.is_empty() {
-                        let (m, n) = stack.pop_front().unwrap();
+                    while let Some((m, n)) = stack.pop_front() {
                         field[m][n] += 1;
                         if !flashed[m * cols + n] && field[m][n] > 9 {
                             flashed[m * cols + n] = true;
@@ -742,25 +692,18 @@ fn day_12() {
         }
         res
     }
-    let sum = traverse2(
-        start,
-        HashSet::<u64>::new(),
-        counter,
-        (&matrix, start, end),
-        &map_vert,
-        None,
-        false,
-    );
-    let sum2 = traverse2(
-        start,
-        HashSet::<u64>::new(),
-        counter,
-        (&matrix, start, end),
-        &map_vert,
-        None,
-        true,
-    );
-    println!("{} {}", sum, sum2);
+    let t = |is_dup: bool| {
+        traverse2(
+            start,
+            HashSet::<u64>::new(),
+            counter,
+            (&matrix, start, end),
+            &map_vert,
+            None,
+            is_dup,
+        )
+    };
+    println!("{} {}", t(false), t(true));
 }
 
 fn day_13() {
@@ -770,41 +713,32 @@ fn day_13() {
     let mut folds = Vec::<(u64, u64)>::new();
     let mut max_x = 0;
     let mut max_y = 0;
-    for line in reader.lines().flatten() {
-        if line.is_empty() {
-            continue;
-        }
+    for line in reader.lines().flatten().filter(|s| !s.is_empty()) {
         if line.starts_with("fold") {
-            let f: Vec<&str> = line.trim().split(' ').collect();
-            let ff: Vec<&str> = f[2].split('=').collect();
-            folds.push((if ff[0] == "x" { 0 } else { 1 }, ff[1].parse().unwrap()));
+            let f: Vec<&str> = line.trim().split(' ').nth(2).unwrap().split('=').collect();
+            folds.push((if f[0] == "x" { 0 } else { 1 }, f[1].parse().unwrap()));
         } else {
             let v: Vec<u64> = line
                 .trim()
                 .split(',')
                 .map(|s| s.trim().parse().unwrap())
                 .collect();
-            if v[0] > max_x {
-                max_x = v[0];
-            }
-            if v[1] > max_y {
-                max_y = v[1];
-            }
+            max_x = max(max_x, v[0]);
+            max_y = max(max_y, v[1]);
             points.push((v[0], v[1]));
         }
     }
     let rows = max_y as usize + 1;
     let cols = max_x as usize + 1;
-    let mut small_rows = rows;
-    let mut small_cols = cols;
+    let mut src = [cols, rows];
     let mut board: Vec<_> = vec![0; rows * cols];
     for (x, y) in points {
         board[y as usize * cols + x as usize] = 1;
     }
     for (n, f) in folds.iter().enumerate() {
         let fold = (f.0 as usize, f.1 as usize);
-        for y in (if fold.0 == 1 { fold.1 + 1 } else { 0 })..small_rows {
-            for x in (if fold.0 == 0 { fold.1 + 1 } else { 0 })..small_cols {
+        for y in (if fold.0 == 1 { fold.1 + 1 } else { 0 })..src[1] {
+            for x in (if fold.0 == 0 { fold.1 + 1 } else { 0 })..src[0] {
                 if board[y * cols + x] == 1 {
                     if fold.0 == 0 {
                         board[y * cols + (2 * fold.1 - x)] = 1;
@@ -816,18 +750,13 @@ fn day_13() {
                 }
             }
         }
-        if fold.0 == 0 {
-            small_cols = fold.1;
-        } else {
-            small_rows = fold.1;
-        }
+        src[fold.0] = fold.1;
         if n == 0 {
-            let sum: u64 = board.iter().sum();
-            println!("{}", sum);
+            println!("{}", board.iter().sum::<u64>());
         }
     }
-    for y in 0..small_rows {
-        for x in 0..small_cols {
+    for y in 0..src[1] {
+        for x in 0..src[0] {
             print!("{}", if board[y * cols + x] == 1 { '#' } else { '.' });
         }
         println!();
@@ -838,24 +767,27 @@ fn day_14() {
     let file = File::open("14/input.txt").unwrap();
     let reader = BufReader::new(file);
     let mut old_sequence: String = String::from("");
-    let mut transitions = HashMap::<String, char>::new();
     let mut counters = HashMap::<char, u64>::new();
-    let mut pair_counters = HashMap::<String, u64>::new();
-    for (i, line) in reader.lines().flatten().enumerate() {
-        if line.is_empty() {
-            continue;
-        }
-        if i == 0 {
-            old_sequence = line.trim().to_string();
-        } else {
-            let kv: Vec<&str> = line.trim().split("->").collect();
-            transitions.insert(
-                kv[0].trim().to_string(),
-                kv[1].trim().chars().next().unwrap(),
-            );
-            pair_counters.insert(kv[0].trim().to_string(), 0);
-        }
-    }
+    let (transitions, mut pair_counters): (HashMap<String, char>, HashMap<String, u64>) = reader
+        .lines()
+        .flatten()
+        .filter(|s| !s.is_empty())
+        .enumerate()
+        .map(|(i, line)| {
+            if i == 0 {
+                old_sequence = line.trim().to_string();
+                None
+            } else {
+                let kv: Vec<&str> = line.trim().split("->").collect();
+                let pair = kv[0].trim().to_string();
+                Some((
+                    (pair.clone(), kv[1].trim().chars().next().unwrap()),
+                    (pair, 0),
+                ))
+            }
+        })
+        .flatten()
+        .unzip();
     for c in old_sequence.chars() {
         *counters.entry(c).or_insert(0) += 1;
     }
