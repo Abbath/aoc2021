@@ -2,6 +2,7 @@ use std::cmp::{max, Ordering, Reverse};
 use std::collections::{BinaryHeap, HashMap, HashSet, VecDeque};
 use std::fs::{read_to_string, File};
 use std::io::{prelude::*, BufReader};
+use std::iter::from_fn;
 use std::u64;
 
 fn day_01() {
@@ -908,11 +909,96 @@ fn day_15() {
         }
         score[rows - 1]
     };
-    print!(
+    println!(
         "{} {}",
         astar(&graph, &field),
         astar(&big_graph, &big_field)
     );
+}
+
+fn day_16() {
+    let line = read_to_string("16/input.txt").unwrap().trim().to_string();
+    let hex = HashMap::<char, u8>::from([
+        ('0', 0),
+        ('1', 1),
+        ('2', 2),
+        ('3', 3),
+        ('4', 4),
+        ('5', 5),
+        ('6', 6),
+        ('7', 7),
+        ('8', 8),
+        ('9', 9),
+        ('A', 10),
+        ('B', 11),
+        ('C', 12),
+        ('D', 13),
+        ('E', 14),
+        ('F', 15),
+    ]);
+    let bits: Vec<char> = line
+        .chars()
+        .map(|c| format!("{:04b}", hex[&c]).chars().collect::<Vec<char>>())
+        .flatten()
+        .collect();
+    fn parse_packet(bits: &[char], offset: &mut usize, versions: &mut u16) -> u64 {
+        let mut b2s = |n| {
+            let v = u16::from_str_radix(&String::from_iter(bits[*offset..*offset + n].iter()), 2)
+                .unwrap();
+            *offset += n;
+            v
+        };
+        let version: u16 = b2s(3);
+        *versions += version;
+        let type_id: u16 = b2s(3);
+        match type_id {
+            4 => {
+                let mut sum = 0u64;
+                loop {
+                    let b: u16 = b2s(5);
+                    sum = (sum << 4) | b as u64 & 0xf;
+                    if b & 0x10 == 0 {
+                        break;
+                    }
+                }
+                sum
+            }
+            _ => {
+                let len_type_id = b2s(1);
+                let values: Vec<u64> = if len_type_id == 0 {
+                    let total_len = b2s(15);
+                    let old_offset = *offset;
+                    from_fn(move || {
+                        if *offset - old_offset < total_len as usize {
+                            Some(parse_packet(bits, offset, versions))
+                        } else {
+                            None
+                        }
+                    })
+                    .collect()
+                } else {
+                    let sub_num = b2s(11);
+                    (0..sub_num)
+                        .map(|_| parse_packet(bits, offset, versions))
+                        .collect()
+                };
+                match type_id {
+                    0 => values.iter().sum::<u64>(),
+                    1 => values.iter().product::<u64>(),
+                    2 => *values.iter().min().unwrap(),
+                    3 => *values.iter().max().unwrap(),
+                    5 => (values[0] > values[1]) as u64,
+                    6 => (values[0] < values[1]) as u64,
+                    7 => (values[0] == values[1]) as u64,
+                    _ => 0,
+                }
+            }
+        }
+    }
+    let mut offset: usize = 0;
+    let mut versions: u16 = 0;
+    let val = parse_packet(&bits, &mut offset, &mut versions);
+    println!("{} {}", versions, val);
 }
 
 fn main() {
@@ -931,4 +1017,5 @@ fn main() {
     day_13();
     day_14();
     day_15();
+    day_16();
 }
