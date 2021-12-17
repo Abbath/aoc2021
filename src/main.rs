@@ -3,6 +3,7 @@ use std::collections::{BinaryHeap, HashMap, HashSet, VecDeque};
 use std::fs::{read_to_string, File};
 use std::io::{prelude::*, BufReader};
 use std::iter::from_fn;
+use std::ops::Range;
 use std::u64;
 
 fn day_01() {
@@ -1001,6 +1002,65 @@ fn day_16() {
     println!("{} {}", versions, val);
 }
 
+fn day_17() {
+    let line = read_to_string("17/input.txt").unwrap().trim().to_string();
+    let coords: Vec<i64> = line
+        .trim()
+        .split(' ')
+        .skip(2)
+        .map(|s| s.split('=').skip(1))
+        .flatten()
+        .map(|s| s.split(".."))
+        .flatten()
+        .map(|s| {
+            if s.ends_with(',') {
+                s[0..s.len() - 1].parse().unwrap()
+            } else {
+                s.parse().unwrap()
+            }
+        })
+        .collect();
+    let x_range = Range {
+        start: coords[0],
+        end: coords[1] + 1,
+    };
+    let y_range = Range {
+        start: coords[2],
+        end: coords[3] + 1,
+    };
+    let mut sum = 0u64;
+    let mut highest = i64::MIN;
+    for i in 0..x_range.end * 2 {
+        for j in 0..i64::abs(y_range.start * 2) {
+            let mut vel = (i, j - i64::abs(y_range.start));
+            let mut pos = (0i64, 0i64);
+            let mut local_highest = i64::MIN;
+            let mut was_there = false;
+            loop {
+                pos.0 += vel.0;
+                pos.1 += vel.1;
+                if pos.0 > x_range.end || pos.1 < y_range.start {
+                    break;
+                }
+                vel.0 -= vel.0.signum();
+                vel.1 -= 1;
+                local_highest = max(pos.1, local_highest);
+                if x_range.contains(&pos.0) && y_range.contains(&pos.1) {
+                    if !was_there {
+                        was_there = true;
+                        sum += 1;
+                    }
+                    if local_highest > highest {
+                        highest = local_highest;
+                        break;
+                    }
+                }
+            }
+        }
+    }
+    println!("{} {}", highest, sum);
+}
+
 fn main() {
     day_01();
     day_02();
@@ -1018,4 +1078,5 @@ fn main() {
     day_14();
     day_15();
     day_16();
+    day_17();
 }
