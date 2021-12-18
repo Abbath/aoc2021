@@ -845,15 +845,8 @@ fn day_15() {
                 .collect::<Vec<usize>>()
         })
         .collect();
-    let mut graph = Vec::<HashMap<usize, usize>>::new();
-    graph.resize(field.len() * field[0].len(), HashMap::<usize, usize>::new());
     let mut big_field = Vec::<Vec<usize>>::new();
     big_field.resize(field.len() * 5, vec![0; field[0].len() * 5]);
-    let mut big_graph = Vec::<HashMap<usize, usize>>::new();
-    big_graph.resize(
-        big_field.len() * big_field[0].len(),
-        HashMap::<usize, usize>::new(),
-    );
     for i in 0..field.len() {
         for j in 0..field[0].len() {
             for m in 0..5 {
@@ -865,44 +858,38 @@ fn day_15() {
             }
         }
     }
-    let fill_graph = |graph: &mut Vec<HashMap<usize, usize>>, field: &Vec<Vec<usize>>| {
-        let sat = |r: usize, c: usize| r * field[0].len() + c;
-        for i in 0..field.len() {
-            for j in 0..field[0].len() {
-                let r = sat(i, j);
-                if i > 0 {
-                    graph[r].insert(sat(i - 1, j), field[i - 1][j]);
-                }
-                if j > 0 {
-                    graph[r].insert(sat(i, j - 1), field[i][j - 1]);
-                }
-                if i < field.len() - 1 {
-                    graph[r].insert(sat(i + 1, j), field[i + 1][j]);
-                }
-                if j < field[0].len() - 1 {
-                    graph[r].insert(sat(i, j + 1), field[i][j + 1]);
-                }
-            }
+    let neighbours = |field: &Vec<Vec<usize>>, idx: usize| -> Vec<(usize, usize)> {
+        let mut res = Vec::new();
+        let i = idx / field[0].len();
+        let j = idx % field[0].len();
+        if i > 0 {
+            res.push(((i - 1) * field[0].len() + j, field[i - 1][j]));
         }
+        if j > 0 {
+            res.push((i * field[0].len() + j - 1, field[i][j - 1]));
+        }
+        if i < field.len() - 1 {
+            res.push(((i + 1) * field[0].len() + j, field[i + 1][j]));
+        }
+        if j < field[0].len() - 1 {
+            res.push((i * field[0].len() + j + 1, field[i][j + 1]));
+        }
+        res
     };
-    fill_graph(&mut graph, &field);
-    fill_graph(&mut big_graph, &big_field);
-    let astar = |graph: &Vec<HashMap<usize, usize>>, field: &Vec<Vec<usize>>| {
+    let astar = |field: &Vec<Vec<usize>>| {
         let h = |u: usize| field[0].len() - u % field[0].len() + field.len() - u / field[0].len();
         let rows = field.len() * field[0].len();
         let mut open_set = BinaryHeap::new();
         open_set.push((Reverse(0), 0));
-        let mut came_from = HashMap::<usize, usize>::new();
         let mut score = vec![usize::MAX; rows];
         score[0] = 0;
         while let Some((Reverse(_), idx)) = open_set.pop() {
             if idx == rows - 1 {
                 break;
             }
-            for (&k, &v) in graph[idx].iter() {
+            for (k, v) in neighbours(field, idx) {
                 let new_score = score[idx] + v;
                 if new_score < score[k] {
-                    came_from.insert(k, idx);
                     score[k] = new_score;
                     open_set.push((Reverse(new_score + h(k)), k));
                 }
@@ -910,36 +897,14 @@ fn day_15() {
         }
         score[rows - 1]
     };
-    println!(
-        "{} {}",
-        astar(&graph, &field),
-        astar(&big_graph, &big_field)
-    );
+    println!("{} {}", astar(&field), astar(&big_field));
 }
 
 fn day_16() {
     let line = read_to_string("16/input.txt").unwrap().trim().to_string();
-    let hex = HashMap::<char, u8>::from([
-        ('0', 0),
-        ('1', 1),
-        ('2', 2),
-        ('3', 3),
-        ('4', 4),
-        ('5', 5),
-        ('6', 6),
-        ('7', 7),
-        ('8', 8),
-        ('9', 9),
-        ('A', 10),
-        ('B', 11),
-        ('C', 12),
-        ('D', 13),
-        ('E', 14),
-        ('F', 15),
-    ]);
     let bits: Vec<char> = line
         .chars()
-        .map(|c| format!("{:04b}", hex[&c]).chars().collect::<Vec<char>>())
+        .map(|c| format!("{:04b}", c.to_digit(16).unwrap()).chars().collect::<Vec<char>>())
         .flatten()
         .collect();
     fn parse_packet(bits: &[char], offset: &mut usize, versions: &mut u16) -> u64 {
