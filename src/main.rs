@@ -1,5 +1,6 @@
 use std::cmp::{max, Ordering, Reverse};
 use std::collections::{BinaryHeap, HashMap, HashSet, VecDeque};
+use std::fmt::Display;
 use std::fs::{read_to_string, File};
 use std::io::{prelude::*, BufReader};
 use std::iter::from_fn;
@@ -904,7 +905,11 @@ fn day_16() {
     let line = read_to_string("16/input.txt").unwrap().trim().to_string();
     let bits: Vec<char> = line
         .chars()
-        .map(|c| format!("{:04b}", c.to_digit(16).unwrap()).chars().collect::<Vec<char>>())
+        .map(|c| {
+            format!("{:04b}", c.to_digit(16).unwrap())
+                .chars()
+                .collect::<Vec<char>>()
+        })
         .flatten()
         .collect();
     fn parse_packet(bits: &[char], offset: &mut usize, versions: &mut u16) -> u64 {
@@ -1026,6 +1031,321 @@ fn day_17() {
     println!("{} {}", highest, sum);
 }
 
+fn day_18() {
+    #[derive(Debug, Clone, PartialEq, Eq)]
+    enum Pair {
+        Dot(Box<Pair>, Box<Pair>),
+        Num(u64),
+    }
+    enum Action {
+        Split(usize),
+        Explode(usize, u64, u64),
+    }
+    impl Display for Pair {
+        fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+            match self {
+                Dot(a, b) => write!(f, "[{},{}]", a, b),
+                Num(n) => write!(f, "{}", n),
+            }
+        }
+    }
+    use Action::{Explode, Split};
+    use Pair::{Dot, Num};
+    let file = File::open("18/input.txt").unwrap();
+    let reader = BufReader::new(file);
+    fn parse_int(s: &[char], offset: usize) -> (Pair, usize) {
+        let mut res = String::from("");
+        let mut i = offset;
+        let mut exit = false;
+        loop {
+            if i == s.len() {
+                i -= 1;
+                break;
+            }
+            let c = s[i];
+            if c.is_whitespace() {
+                i += 1;
+                continue;
+            }
+            if c.is_digit(10) {
+                if exit {
+                    break;
+                }
+                res.push(c);
+            }
+            if c == '[' && exit {
+                break;
+            }
+            if c == ',' {
+                exit = true;
+            }
+            if c == ']' {
+                break;
+            }
+            i += 1;
+        }
+        (Num(res.parse().unwrap()), i)
+    }
+    fn parse_dot(s: &[char], offset: usize) -> (Pair, usize) {
+        let mut new_offset = offset + 1;
+        if s[offset] == '[' {
+            let first = if s[new_offset] == '[' {
+                let (p1, o1) = parse_dot(s, new_offset);
+                new_offset = o1;
+                p1
+            } else {
+                let (n1, o1) = parse_int(s, new_offset);
+                new_offset = o1;
+                n1
+            };
+            let second = if s[new_offset] == '[' {
+                let (p2, o2) = parse_dot(s, new_offset);
+                new_offset = o2;
+                let mut exit = false;
+                for i in 0.. {
+                    if new_offset + i == s.len() {
+                        break;
+                    }
+                    if exit
+                        && (s[new_offset + i].is_digit(10)
+                            || s[new_offset + i] == '['
+                            || s[new_offset + i] == ']')
+                    {
+                        new_offset += i;
+                        break;
+                    }
+                    if s[new_offset + i] == ']' {
+                        exit = true;
+                    }
+                }
+                p2
+            } else {
+                let (n2, o2) = parse_int(s, new_offset);
+                new_offset = o2;
+                let mut exit = false;
+                for i in 0.. {
+                    if new_offset + i == s.len() {
+                        break;
+                    }
+                    if exit
+                        && (s[new_offset + i].is_digit(10)
+                            || s[new_offset + i] == '['
+                            || s[new_offset + i] == ']')
+                    {
+                        new_offset += i;
+                        break;
+                    }
+                    if s[new_offset + i] == ']' {
+                        exit = true;
+                    }
+                }
+                n2
+            };
+            (Dot(Box::new(first), Box::new(second)), new_offset)
+        } else {
+            panic!("ZHEPA!");
+        }
+    }
+    fn check_explode(d: &Pair, depth: usize, n: usize) -> (Pair, usize, Option<Action>) {
+        match d {
+            Dot(a, b) => {
+                if let Dot(o, p) = a.as_ref() {
+                    if depth == 3 {
+                        if let Num(x) = o.as_ref() {
+                            if let Num(y) = p.as_ref() {
+                                return (d.clone(), n, Some(Explode(n, *x, *y)));
+                            }
+                        }
+                    }
+                }
+
+                let (c, n1, e1) = check_explode(a, depth + 1, n);
+                if let Dot(o, p) = b.as_ref() {
+                    if depth == 3 {
+                        if let Num(x) = o.as_ref() {
+                            if let Num(y) = p.as_ref() {
+                                return (d.clone(), n1, Some(Explode(n1, *x, *y)));
+                            }
+                        }
+                    }
+                }
+                if e1.is_some() {
+                    (d.clone(), n1, e1)
+                } else {
+                    let (d, n2, e2) = check_explode(b, depth + 1, n1);
+
+                    if e2.is_some() {
+                        (d, n2, e2)
+                    } else {
+                        (Dot(Box::new(c), Box::new(d)), n2, e2)
+                    }
+                }
+            }
+            Num(_) => (d.clone(), n + 1, None),
+        }
+    }
+    fn check_split(d: &Pair, depth: usize, n: usize) -> (Pair, usize, Option<Action>) {
+        match d {
+            Dot(a, b) => {
+                let (c, n1, e1) = check_split(a, depth + 1, n);
+                if e1.is_some() {
+                    (d.clone(), n1, e1)
+                } else {
+                    let (d, n2, e2) = check_split(b, depth + 1, n1);
+                    if e2.is_some() {
+                        (d, n2, e2)
+                    } else {
+                        (Dot(Box::new(c), Box::new(d)), n2, e2)
+                    }
+                }
+            }
+            Num(num) => {
+                if num >= &10 {
+                    (d.clone(), n + 1, Some(Split(n)))
+                } else {
+                    (d.clone(), n + 1, None)
+                }
+            }
+        }
+    }
+    fn split_dot(d: &Pair, n: usize, sp: usize) -> (Pair, usize) {
+        match d {
+            Dot(a, b) => {
+                let (c, n1) = split_dot(a, n, sp);
+                let (d, n2) = split_dot(b, n1, sp);
+                (Dot(Box::new(c), Box::new(d)), n2)
+            }
+            Num(num) => {
+                if n == sp {
+                    (
+                        Dot(
+                            Box::new(Num((*num as f64 / 2.0).floor() as u64)),
+                            Box::new(Num((*num as f64 / 2.0).ceil() as u64)),
+                        ),
+                        n + 2,
+                    )
+                } else {
+                    (d.clone(), n + 1)
+                }
+            }
+        }
+    }
+    fn explode_dot(d: &Pair, ex: (usize, u64, u64), n: usize) -> (Pair, usize) {
+        let (m, x, y) = ex;
+        match d {
+            Dot(a, b) => {
+                let new_a = if let Dot(o, _) = a.as_ref() {
+                    if let Num(k) = o.as_ref() {
+                        if n == m && *k == x {
+                            Num(0)
+                        } else {
+                            a.as_ref().clone()
+                        }
+                    } else {
+                        a.as_ref().clone()
+                    }
+                } else {
+                    a.as_ref().clone()
+                };
+                let (c, n1) = explode_dot(&new_a, ex, n);
+                let new_b = if let Dot(o, _) = b.as_ref() {
+                    if let Num(k) = o.as_ref() {
+                        if n1 == m && *k == x {
+                            Num(0)
+                        } else {
+                            b.as_ref().clone()
+                        }
+                    } else {
+                        b.as_ref().clone()
+                    }
+                } else {
+                    b.as_ref().clone()
+                };
+                let (d, n2) = explode_dot(&new_b, ex, n1);
+                (Dot(Box::new(c), Box::new(d)), n2)
+            }
+            Num(num) => {
+                if n + 1 == m {
+                    (Num(num + x), n + 1)
+                } else if n - 1 == m {
+                    (Num(num + y), n + 1)
+                } else {
+                    (d.clone(), n + 1)
+                }
+            }
+        }
+    }
+    fn magnitude(d: &Pair) -> u64 {
+        match d {
+            Dot(a, b) => {
+                let mag1 = magnitude(a);
+                let mag2 = magnitude(b);
+                mag1 * 3 + mag2 * 2
+            }
+            Num(num) => *num,
+        }
+    }
+    fn combine(a: Option<Action>, b: Option<Action>) -> Option<Action> {
+        if a.is_some() {
+            return a;
+        }
+        if a.is_none() && b.is_none() {
+            return None;
+        }
+        if a.is_none() && b.is_some() {
+            return b;
+        }
+        None
+    }
+    fn reduce(pp: &Pair) -> Pair {
+        let mut p = pp.clone();
+        loop {
+            let (_, _, e1) = check_explode(&p, 0, 0);
+            let (_, _, e2) = check_split(&p, 0, 0);
+            match combine(e1, e2) {
+                Some(Explode(n, x, y)) => {
+                    let (p1, _) = explode_dot(&p, (n, x, y), 0);
+                    p = p1;
+                }
+                Some(Split(n)) => {
+                    let (p1, _) = split_dot(&p, 0, n);
+                    p = p1;
+                }
+                None => {
+                    break;
+                }
+            }
+        }
+        p
+    }
+    let mut p = Num(0);
+    let mut ps = Vec::<Pair>::new();
+    for (i, line) in reader.lines().flatten().enumerate() {
+        let chars: Vec<char> = line.chars().collect();
+        let (pp, _) = parse_dot(&chars, 0);
+        ps.push(pp.clone());
+        if i == 0 {
+            p = pp;
+            continue;
+        } else {
+            p = Dot(Box::new(p), Box::new(pp));
+        }
+        p = reduce(&p);
+    }
+    print!("{} ", magnitude(&p));
+    let mut max_m = u64::MIN;
+    for i in 0..ps.len() {
+        for j in 0..ps.len() {
+            if i != j {
+                let p = reduce(&Dot(Box::new(ps[i].clone()), Box::new(ps[j].clone())));
+                let m = magnitude(&p);
+                max_m = max(max_m, m);
+            }
+        }
+    }
+    println!("{}", max_m);
+}
+
 fn main() {
     day_01();
     day_02();
@@ -1044,4 +1364,5 @@ fn main() {
     day_15();
     day_16();
     day_17();
+    day_18();
 }
