@@ -1063,10 +1063,6 @@ fn day_18() {
                 break;
             }
             let c = s[i];
-            if c.is_whitespace() {
-                i += 1;
-                continue;
-            }
             if c.is_digit(10) {
                 if exit {
                     break;
@@ -1086,6 +1082,22 @@ fn day_18() {
         }
         (Num(res.parse().unwrap()), i)
     }
+    fn skip(s: &[char], offset: usize) -> usize {
+        let mut exit = false;
+        for i in 0.. {
+            if offset + i == s.len() {
+                return 0;
+            }
+            if exit && (s[offset + i].is_digit(10) || s[offset + i] == '[' || s[offset + i] == ']')
+            {
+                return i;
+            }
+            if s[offset + i] == ']' {
+                exit = true;
+            }
+        }
+        0
+    }
     fn parse_dot(s: &[char], offset: usize) -> (Pair, usize) {
         let mut new_offset = offset + 1;
         if s[offset] == '[' {
@@ -1100,45 +1112,11 @@ fn day_18() {
             };
             let second = if s[new_offset] == '[' {
                 let (p2, o2) = parse_dot(s, new_offset);
-                new_offset = o2;
-                let mut exit = false;
-                for i in 0.. {
-                    if new_offset + i == s.len() {
-                        break;
-                    }
-                    if exit
-                        && (s[new_offset + i].is_digit(10)
-                            || s[new_offset + i] == '['
-                            || s[new_offset + i] == ']')
-                    {
-                        new_offset += i;
-                        break;
-                    }
-                    if s[new_offset + i] == ']' {
-                        exit = true;
-                    }
-                }
+                new_offset = o2 + skip(s, o2);
                 p2
             } else {
                 let (n2, o2) = parse_int(s, new_offset);
-                new_offset = o2;
-                let mut exit = false;
-                for i in 0.. {
-                    if new_offset + i == s.len() {
-                        break;
-                    }
-                    if exit
-                        && (s[new_offset + i].is_digit(10)
-                            || s[new_offset + i] == '['
-                            || s[new_offset + i] == ']')
-                    {
-                        new_offset += i;
-                        break;
-                    }
-                    if s[new_offset + i] == ']' {
-                        exit = true;
-                    }
-                }
+                new_offset = o2 + skip(s, o2);
                 n2
             };
             (Dot(Box::new(first), Box::new(second)), new_offset)
@@ -1153,29 +1131,27 @@ fn day_18() {
                     if depth == 3 {
                         if let Num(x) = o.as_ref() {
                             if let Num(y) = p.as_ref() {
-                                return (d.clone(), n, Some(Explode(n, *x, *y)));
+                                return (Num(0), 0, Some(Explode(n, *x, *y)));
                             }
                         }
                     }
                 }
-
                 let (c, n1, e1) = check_explode(a, depth + 1, n);
                 if let Dot(o, p) = b.as_ref() {
                     if depth == 3 {
                         if let Num(x) = o.as_ref() {
                             if let Num(y) = p.as_ref() {
-                                return (d.clone(), n1, Some(Explode(n1, *x, *y)));
+                                return (Num(0), 0, Some(Explode(n1, *x, *y)));
                             }
                         }
                     }
                 }
                 if e1.is_some() {
-                    (d.clone(), n1, e1)
+                    (Num(0), n1, e1)
                 } else {
                     let (d, n2, e2) = check_explode(b, depth + 1, n1);
-
                     if e2.is_some() {
-                        (d, n2, e2)
+                        (Num(0), n2, e2)
                     } else {
                         (Dot(Box::new(c), Box::new(d)), n2, e2)
                     }
@@ -1184,16 +1160,16 @@ fn day_18() {
             Num(_) => (d.clone(), n + 1, None),
         }
     }
-    fn check_split(d: &Pair, depth: usize, n: usize) -> (Pair, usize, Option<Action>) {
+    fn check_split(d: &Pair, n: usize) -> (Pair, usize, Option<Action>) {
         match d {
             Dot(a, b) => {
-                let (c, n1, e1) = check_split(a, depth + 1, n);
+                let (c, n1, e1) = check_split(a, n);
                 if e1.is_some() {
-                    (d.clone(), n1, e1)
+                    (Num(0), n1, e1)
                 } else {
-                    let (d, n2, e2) = check_split(b, depth + 1, n1);
+                    let (d, n2, e2) = check_split(b, n1);
                     if e2.is_some() {
-                        (d, n2, e2)
+                        (Num(0), n2, e2)
                     } else {
                         (Dot(Box::new(c), Box::new(d)), n2, e2)
                     }
@@ -1208,11 +1184,11 @@ fn day_18() {
             }
         }
     }
-    fn split_dot(d: &Pair, n: usize, sp: usize) -> (Pair, usize) {
+    fn split(d: &Pair, n: usize, sp: usize) -> (Pair, usize) {
         match d {
             Dot(a, b) => {
-                let (c, n1) = split_dot(a, n, sp);
-                let (d, n2) = split_dot(b, n1, sp);
+                let (c, n1) = split(a, n, sp);
+                let (d, n2) = split(b, n1, sp);
                 (Dot(Box::new(c), Box::new(d)), n2)
             }
             Num(num) => {
@@ -1230,38 +1206,38 @@ fn day_18() {
             }
         }
     }
-    fn explode_dot(d: &Pair, ex: (usize, u64, u64), n: usize) -> (Pair, usize) {
+    fn explode(d: &Pair, ex: (usize, u64, u64), n: usize) -> (Pair, usize) {
         let (m, x, y) = ex;
         match d {
             Dot(a, b) => {
                 let new_a = if let Dot(o, _) = a.as_ref() {
                     if let Num(k) = o.as_ref() {
                         if n == m && *k == x {
-                            Num(0)
+                            true
                         } else {
-                            a.as_ref().clone()
+                            false
                         }
                     } else {
-                        a.as_ref().clone()
+                        false
                     }
                 } else {
-                    a.as_ref().clone()
+                    false
                 };
-                let (c, n1) = explode_dot(&new_a, ex, n);
+                let (c, n1) = explode(if new_a { &Num(0) } else { a }, ex, n);
                 let new_b = if let Dot(o, _) = b.as_ref() {
                     if let Num(k) = o.as_ref() {
                         if n1 == m && *k == x {
-                            Num(0)
+                            true
                         } else {
-                            b.as_ref().clone()
+                            false
                         }
                     } else {
-                        b.as_ref().clone()
+                        false
                     }
                 } else {
-                    b.as_ref().clone()
+                    false
                 };
-                let (d, n2) = explode_dot(&new_b, ex, n1);
+                let (d, n2) = explode(if new_b { &Num(0) } else { b }, ex, n1);
                 (Dot(Box::new(c), Box::new(d)), n2)
             }
             Num(num) => {
@@ -1289,10 +1265,7 @@ fn day_18() {
         if a.is_some() {
             return a;
         }
-        if a.is_none() && b.is_none() {
-            return None;
-        }
-        if a.is_none() && b.is_some() {
+        if b.is_some() {
             return b;
         }
         None
@@ -1301,14 +1274,14 @@ fn day_18() {
         let mut p = pp.clone();
         loop {
             let (_, _, e1) = check_explode(&p, 0, 0);
-            let (_, _, e2) = check_split(&p, 0, 0);
+            let (_, _, e2) = check_split(&p, 0);
             match combine(e1, e2) {
                 Some(Explode(n, x, y)) => {
-                    let (p1, _) = explode_dot(&p, (n, x, y), 0);
+                    let (p1, _) = explode(&p, (n, x, y), 0);
                     p = p1;
                 }
                 Some(Split(n)) => {
-                    let (p1, _) = split_dot(&p, 0, n);
+                    let (p1, _) = split(&p, 0, n);
                     p = p1;
                 }
                 None => {
